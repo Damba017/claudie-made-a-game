@@ -68,7 +68,7 @@ Each species loves one nutrient and gets 50% more out of it. *Nitro + Gel* and *
 - ⭐ **Golden plants**: well-kept plants sometimes mature golden for triple price
 - ☀️ **Sunshine**: a rare second currency for premium upgrades
 - 📖 **Plant Almanac** and **22 awards** to collect
-- 🐈 **A barn cat** that wanders in and likes being petted
+- 🐈 **A barn cat** that wanders in and likes being petted, with five extra coats to collect: Lexie the brown tabby, fluffy Maya and Alice, Coco the Siamese and Mosh the British Shorthair
 - 🎨 **Pot paints**, 📸 **photo mode**, and a barn that gains decorations as it grows
 - 💾 **Saves**: autosave, export and import as text, and offline progress with a "welcome back" summary
 - ♿ **Accessibility**: colour-blind friendly mode, reduced motion, interface scaling, keyboard controls
@@ -155,7 +155,7 @@ Measured with a scripted player (`tests/balance.js`) that never uses nutrients:
 
 ## 🧪 Tests
 
-Open **`tests/tests.html`** in a browser to run 37 logic tests and the balance simulation.
+Open **`tests/tests.html`** in a browser to run 39 logic tests and the balance simulation.
 
 With Node installed you can also run:
 
