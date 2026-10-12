@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Barn Bloom, a cozy plant-care game. Water, feed, harvest and grow your barn.">
+  <title>Barn Bloom</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M8 18h16l-2 11H10z' fill='%23c9714b'/%3E%3Cpath d='M16 18c0-8-6-9-9-13 8-1 11 4 9 13zM16 18c0-7 5-9 9-11-1 7-4 10-9 11z' fill='%2363b95f'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="mode-menu">
+  <!-- The whole barn scene is drawn on this canvas. -->
+  <canvas id="scene" role="img" aria-label="Your barn full of plants"></canvas>
+
+  <!-- In-game interface. Filled in by js/ui.js. -->
+  <header id="hud" class="hud" aria-label="Status"></header>
+  <aside id="side" class="side" aria-label="Plant details and orders">
+    <div id="tutorial" class="tutorial" hidden></div>
+    <section id="info" class="card info" aria-live="off"></section>
+    <section id="orders" class="card orders"></section>
+  </aside>
+  <nav id="toolbar" class="toolbar" aria-label="Tools"></nav>
+  <div id="visitBar" class="visit-bar" hidden></div>
+  <div id="popover" class="popover" hidden></div>
+
+  <main id="menu" class="menu"></main>
+  <div id="modals"></div>
+  <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+  <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
+  <div id="debug" class="debug" hidden></div>
+  <div id="fps" class="fps" hidden></div>
+  <div id="photoHint" class="photo-hint" hidden>Photo mode. Press any key or tap to return.</div>
+
+  <noscript><p style="color:#fff3d6;padding:2rem;font-family:sans-serif">Barn Bloom needs JavaScript to run.</p></noscript>
+
+  <!-- Classic scripts in dependency order, so the game also runs from file://. -->
+  <script src="js/config.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/logic.js"></script>
+  <script src="js/save.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/art.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
