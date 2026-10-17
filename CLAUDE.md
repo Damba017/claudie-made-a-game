@@ -22,6 +22,7 @@ The full original brief is in `docs/ORIGINAL_BRIEF.md`. Read it before any large
 
 - **Ask before creating or doing anything new.** Propose the change first and wait for a yes. Small tweaks the user explicitly asked for can go straight in.
 - **Terminal: the user runs commands, Claude does not.** Since 17 October 2026 the user has Homebrew and git and pushes the game to GitHub (`Damba017/claudie-made-a-game`, GitHub Pages) from their own terminal. GitLab was tried that day and dropped as too confusing. Give commands as copyable `bash` blocks (one per block) with a plain explanation. Claude itself still uses only the file tools and the built-in browser: do not call Bash unless the user explicitly asks (it slipped five times on 12 and 14 October and had to be confessed). Node was not installed as of 12 October, so tests run in `tests/tests.html`.
+- **Git setup (17 October 2026):** the project now lives in `~/game` and is a git repo linked to GitHub; the first push from the terminal worked. This repo has `credential.useHttpPath true`, so its GitHub token (fine-grained, Contents read/write on this repo only) is saved separately from the token for the user's Telegram bot. Never suggest erasing the saved github.com login: that would break the bot repo. The user was then shown how to give the bot repo its own entry as well (`git config --global credential.useHttpPath true`, push once in the bot folder, then delete the general entry in Keychain Access); not confirmed whether they did it. Normal update: `git add -A`, `git commit -m "..."`, `git push`. To undo a pushed commit: `git revert --no-edit <id>` then `git push`.
 - Keep replies short and plain. The user is not a professional developer.
 - Update `README.md` when a change makes it wrong (feature list, upgrade count, controls, balance table).
 - The user plans to publish on GitHub. Do not invent their handle, a licence or badges.
@@ -64,7 +65,7 @@ Key conventions:
 ### Recipes
 
 - **New upgrade:** add an entry to `CONFIG.UPGRADES` (`id, cat, name, desc, max, cost, mult, base, per, fmt`, optional `requires`, `currency`). Read it in logic with `L.eff(state, id)` or `L.level(state, id)`. The upgrade screen and saves pick it up automatically.
-- **New species:** add to `CONFIG.SPECIES`, add a draw function to `SPECIES_ART` and a height to `HEIGHT` in `art.js`.
+- **New species:** add to `CONFIG.SPECIES`, add a draw function to `SPECIES_ART` and a height to `HEIGHT` in `art.js`. Shop plants go in unlock-price order before the rare block (check the Seed Library `values`); a rare plant goes at the very end with `rare: '<event kind>'`, `price`, `seedCost` (same as price) and an `offer` text.
 - **New nutrient:** add to `CONFIG.NUTRIENTS` (with `shape`, `color`, `key`, `powUpgrade`), add its key to `newPlant().nutrients`, apply its effect in `logic.js`, add a bottle in `Art.drawNutrientIcon` and a keyboard shortcut in `main.js`.
 - **New event:** add weight and duration to `CONFIG.EVENTS`, handle it in `L.triggerEvent` and `tickEvents`, add a toast in `EVENT_TOASTS` (`main.js`) and a chip in `EVENT_INFO` (`ui.js`).
 - **Save format change:** bump `CONFIG.VERSION`, add a step to `MIGRATIONS` in `save.js`, and make sure `Save.sanitize` copies the new field.
@@ -73,11 +74,11 @@ Key conventions:
 
 Version 1 is complete and the user has played it and likes it.
 
-- 8 species: Pepperwink, Drizzle Fern, Grumpy Prickle, Sunny Goliath, Jamboree Berry, Glimmercap, Moonveil Orchid, Stardust Lotus.
+- 15 species: 11 in the shop (Pepperwink, Drizzle Fern, Grumpy Prickle, Sunny Goliath, Jamboree Berry, Plumpkin, Glimmercap, Moonveil Orchid, Firecracker Pepper, Stardust Lotus, Crystalbloom Rose) and 4 rare event-only plants (Rainbow Lily, Ember Agave, Honeyheart, Wanderer's Mandrake).
 - 4 nutrients (Nitro-Bloom Fizz, Gulp-Gel, Glamour Jam, Bug-Off Tonic) plus rare Comet Crumbs; 2 synergies.
 - 50 upgrades: 37 in seven categories (tools, nutrients, barn, helpers, economy, combat, sunshine) plus 13 Heirloom upgrades.
 - Prestige (New Seasons) and 5 bosses in the Wild Patch.
-- 5 random events, day/night cycle, 30 awards, almanac, chalkboard orders, golden plants, Sunshine currency, barn cat, pot paints, photo mode.
+- 5 random events, day/night cycle, 31 awards, almanac, chalkboard orders, golden plants, Sunshine currency, barn cat, pot paints, photo mode.
 - All screens from the brief, tutorial, settings, admin panel (owner only), saves with export/import and offline progress.
 
 Changes made after the first build:
@@ -156,6 +157,19 @@ For the user's own testing. It replaces the old debug panel, so the public versi
 - Sections: Give (add or set any amount of coins, Sunshine, Heirloom Seeds, Comet Crumbs, each nutrient, each seed), Seasons (set prestige, reach season goal), Upgrades (set any level, max all, unlock all species, "Ignore level caps"), Bosses (reset timers and "beaten", boss to 1 HP, win now, "No 20-minute wait"), Barn (grow all, skip time, night, fake 2 h away, restart tutorial), Events, Reset the whole save.
 - Barn buttons only work in the barn and fight buttons only during a fight (a toast says so otherwise).
 - The two switches are settings (`adminNoCaps`, `adminNoCooldown`) and only take effect when `G.isAdmin`. `L.ignoreCaps` makes `L.upgradeMax` return the absolute cap (`maxCap || max`). Switching it off drops levels back to the normal cap. Tested by "the admin switch ignore level caps" in `tests/logic.test.js` (52 tests now, all passed).
+
+## New plants and rare plants (built 17 October 2026)
+
+The user asked for more plants plus very rare, pricey-but-worth-it plants only available through events (names and designs were left to Claude). Agreed plan, built:
+
+- **3 shop plants** slotted into the unlock ladder (`CONFIG.SPECIES` order matters): Plumpkin (`pumpkin`, 3,000; `prize: 2` = 5-star sells double), Firecracker Pepper (`pepper`, 90,000; `heatMult: 2`), Crystalbloom Rose (`crystal`, 2.5M + 10 Sunshine; 3 Sunshine per fine bloom; `primeFactor: 0.15` = short prime). Seed Library (`hSpecies`) got a 6th level and new `values` so old levels still mean the same plants.
+- **4 rare plants** at the END of `CONFIG.SPECIES`, flagged `rare: '<event>'` with a `price` and an `offer` text: Rainbow Lily (rain, 40k, 4 harvests, `rainMult`, 1 Sunshine every harvest via `sunStars: 1`), Ember Agave (heat, 60k, `heatProof`, `heatMult: 3`, `heatPay: 2`), Honeyheart (bee, 100k, `crumbs: 1` per harvest, extra lucky-bee weight via `L.eventWeights`), Wanderer's Mandrake (merchant, 300k, `heirlooms: 1` at 4+ stars, `sound: 'shriek'`). Values tuned so one seed earns back about 3x its price in a mid-game barn (Mandrake 2.5x plus Heirloom Seeds); see the rare table in `tests/balance.js`.
+- **Offers:** `CONFIG.RARE` (needs Moonveil Orchid unlocked, 15% chance when the matching event starts, offer waits 90 s). `maybeRareOffer` in `L.triggerEvent` (rolls no dice before the Orchid, which keeps older seeded tests stable), `L.offerRare`, `L.buyRare`, countdown in `tickEvents`; state `events.rare` (sanitised; price always from config). UI: toast with a Buy button, gold card at the top of Shop > Special, HUD chip with countdown, Almanac says where each is found, admin panel "Rare seed offers" buttons.
+- **Rules:** rare plants are never unlocked, sold, ordered or offered as normal merchant seeds (`L.buySeed` / `unlockSpecies` refuse `'rare'`; `bestUnlocked`, `nextLocked`, `makeOrder` skip them); the squirrel never replants them (`pot.memo` stays null). A New Season keeps rare seeds and turns living rare plants back into seeds (`L.rareSeedsKept`). They can be gifted and traded like other seeds.
+- Art: `SPECIES_ART` pumpkin, pepper, crystal, lily, agave, honey, mandrake (+ `HEIGHT`), gold-trimmed rare seed packets. Sounds `rare` and `shriek`. Awards: Botanist now means all 11 shop plants; new Rare Collector (31 awards).
+- Verified: all 7 drawings rendered without errors at 8 stages each in the built-in browser from a pasted copy of the drawing code. The user then ran `tests/tests.html` (all 56 passed) and saw the new plants in the game. The README pacing table may still be slightly off (the bot now also unlocks the new shop plants); refresh it when the user sends a balance output.
+- Same day: setting `confirmDig` (default on). The "Dig up this plant?" dialog has a "Don't ask me again" box (`UI.confirm` option `dontAsk`; `onYes(checked)`), and Settings > Game has "Ask before digging up a plant" to switch it back on. Sweeping the shovel still only clears withered plants. The user saw the dialog with the box in the game and said it is perfect.
+- The user asked (17 October 2026) whether an iPhone app via TestFlight is possible. Answer given: yes, by wrapping the game in a small native app (a WKWebView) in Xcode; needs Xcode and a paid Apple Developer account (99 USD a year). Not started.
 
 ## Dark mode (built 14 October 2026)
 

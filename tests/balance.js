@@ -109,6 +109,7 @@
       var options = [];
       for (var i = 0; i < C.SPECIES.length; i++) {
         var sp = C.SPECIES[i];
+        if (sp.rare) continue;    // rare plants only come from events
         if (!st.unlocked[sp.id]) {
           if (!sp.unlockSun || st.sunshine >= sp.unlockSun) options.push({ cost: sp.unlock, kind: 'species', id: sp.id, name: 'unlock ' + sp.name });
           break;   // only ever consider the next species
@@ -220,6 +221,28 @@
   }
   function padRight(v, n) { v = String(v); while (v.length < n) v += ' '; return v; }
 
+  /**
+   * What one rare seed returns over all its harvests in a typical mid-game
+   * barn (4-star quality, Market Stall 5, Sunshine Glaze 2), next to its price.
+   */
+  function rareReport() {
+    var st = S.newGame();
+    st.upgrades.stall = 5; st.upgrades.glaze = 2;
+    var mult = L.sellMultiplier(st), q = C.QUALITY.careWeight;
+    var lines = ['  plant                   price   coins back  x price   extra'];
+    C.SPECIES.forEach(function (sp) {
+      if (!sp.rare) return;
+      var total = Math.round(sp.value * (C.QUALITY.priceBase + C.QUALITY.priceSpan * q) * mult * sp.harvests);
+      var extra = [];
+      if (sp.sunshine) extra.push(sp.harvests * sp.sunshine + ' Sunshine');
+      if (sp.crumbs) extra.push(sp.harvests * sp.crumbs + ' Comet Crumbs');
+      if (sp.heirlooms) extra.push('up to ' + sp.harvests * sp.heirlooms + ' Heirloom Seeds');
+      if (sp.heatPay) extra.push('double if harvested in a heatwave');
+      lines.push('  ' + padRight(sp.name, 20) + pad(sp.price, 9) + pad(total, 13) + pad((total / sp.price).toFixed(1) + 'x', 9) + '   ' + extra.join(', '));
+    });
+    return lines.join('\n');
+  }
+
   function report() {
     var out = [], a = simulate({ minutes: 30, actionsPerSecond: 1.5, seed: 7 });
     out.push('Balance: attentive player (1.5 actions/second), 30 minutes'); out.push(a.text);
@@ -232,9 +255,11 @@
     out.push('  plants lost: ' + n.deaths + ', seeds in the bag afterwards: ' + n.seeds + (n.seeds > 0 ? '  (safeguard works: never stuck)' : '  (STUCK!)'));
     out.push(''); out.push('Bosses: a scripted fighter at 4 clicks per second, trying again until it wins');
     out.push(bossReport());
+    out.push(''); out.push('Rare plants: what one seed earns back over all its harvests (mid-game barn, 4 stars)');
+    out.push(rareReport());
     return out.join('\n');
   }
 
-  BB.Balance = { simulate: simulate, neglect: neglect, report: report, bossReport: bossReport };
+  BB.Balance = { simulate: simulate, neglect: neglect, report: report, bossReport: bossReport, rareReport: rareReport };
   if (typeof document === 'undefined') console.log(report());
 })(typeof window !== 'undefined' ? window : globalThis);

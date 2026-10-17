@@ -153,6 +153,18 @@
     squeak: function () { tone(1700, 0, 0.07, { vol: 0.06, to: 2300 }); },
     order: function () { arp([659, 784, 988, 1319], 0.09, 0.3, { vol: 0.12, type: 'triangle' }); },
     thunder: function () { noise(0, 1.1, { filter: 'lowpass', from: 220, to: 60, vol: 0.3, q: 0.5 }); },
+    // A rare seed is on offer: a little sparkling fanfare.
+    rare: function () {
+      arp([784, 988, 1175, 1568, 1976], 0.06, 0.4, { vol: 0.09, type: 'triangle' });
+      tone(2637, 0.34, 0.7, { vol: 0.05 });
+    },
+    // Wanderer's Mandrake being pulled up: an indignant, wobbly little scream.
+    shriek: function () {
+      tone(700, 0, 0.18, { type: 'sawtooth', vol: 0.06, to: 1500 });
+      tone(1500, 0.16, 0.35, { type: 'sawtooth', vol: 0.06, to: 900 });
+      tone(1050, 0, 0.5, { type: 'square', vol: 0.025, to: 1300 });
+      noise(0, 0.4, { from: 2600, to: 1800, q: 3, vol: 0.05 });
+    },
     shutter: function () { noise(0, 0.05, { from: 3000, vol: 0.15 }); noise(0.09, 0.06, { from: 2000, vol: 0.12 }); },
     // ---- boss fights ----
     snip: function () {

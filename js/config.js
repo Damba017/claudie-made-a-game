@@ -119,6 +119,18 @@
       ladybugDelays: [30, 15, 5]
     },
 
+    // ---- Rare plants (seeds only from events) -------------------------
+    // Each rare species names its event; when that event starts there is a
+    // `chance` that someone offers one seed, for `offerTime` seconds.
+    // About once an hour per plant with events on.
+    RARE: {
+      needs: 'orchid',      // offers start once this species is unlocked
+      chance: 0.15,
+      offerTime: 90,
+      beeWeightEach: 2,     // a growing Honeyheart adds this much weight to the lucky bee event ...
+      maxHoneyhearts: 2     // ... for up to this many plants
+    },
+
     // ---- Orders (chalkboard) ----------------------------------------
     ORDERS: {
       count: 2,
@@ -251,6 +263,14 @@
       colors: { leaf: '#4fa35a', leaf2: '#357f48', accent: '#d9366f', seed: '#7a2a4a' }
     },
     {
+      id: 'pumpkin', name: 'Plumpkin', latin: 'Cucurbita chonkia',
+      blurb: 'Starts as a pea, ends as a footstool. Nobody knows where it puts all that water.',
+      quirk: 'Thirsty and slow. A perfect 5-star Plumpkin is a prize pumpkin and sells for double.',
+      growTime: 300, thirst: 1.6, water: [45, 100], value: 220, seedCost: 80, unlock: 3000,
+      likes: ['jam'], dayMult: 1, nightMult: 1, harvests: 1, prize: 2,
+      colors: { leaf: '#5aa84f', leaf2: '#3d8a3f', accent: '#f08a2c', seed: '#e8d39a' }
+    },
+    {
       id: 'shroom', name: 'Glimmercap', latin: 'Fungus nightlightii',
       blurb: 'Glows softly, hums occasionally, and is definitely not a plant.',
       quirk: 'Grows 60% faster at night. Likes it damp.',
@@ -267,6 +287,14 @@
       colors: { leaf: '#5aa56a', leaf2: '#3d8554', accent: '#c79bff', seed: '#6a5a7a' }
     },
     {
+      id: 'pepper', name: 'Firecracker Pepper', latin: 'Capsicum kablooium',
+      blurb: 'So hot it crackles. Please keep it away from the hay bales.',
+      quirk: 'Grows twice as fast in a heatwave. Little sparks fly off it when it is ripe.',
+      growTime: 480, thirst: 1.2, water: [35, 80], value: 1150, seedCost: 400, unlock: 90000,
+      likes: ['nitro'], dayMult: 1.1, nightMult: 0.9, harvests: 1, heatMult: 2,
+      colors: { leaf: '#4f9e48', leaf2: '#357a3a', accent: '#e8392e', seed: '#c9a23f' }
+    },
+    {
       id: 'lotus', name: 'Stardust Lotus', latin: 'Nelumbo cosmica',
       blurb: 'Fell out of the night sky, landed in a pot, and decided to stay.',
       quirk: 'Legendary. A fine bloom (4 stars or better) also yields Sunshine.',
@@ -274,6 +302,55 @@
       unlock: 250000, unlockSun: 5, sunshine: 2,
       likes: ['jam', 'gel'], dayMult: 1, nightMult: 1.15, harvests: 1,
       colors: { leaf: '#4fb3a5', leaf2: '#2f8f8a', accent: '#ff9fe0', seed: '#5a6ad0' }
+    },
+    {
+      id: 'crystal', name: 'Crystalbloom Rose', latin: 'Rosa vitrea',
+      blurb: 'A rose of living glass. It chimes in the breeze and sulks at the first unkind word.',
+      quirk: 'Worth a fortune, and a fine bloom gives 3 Sunshine. It goes past its prime very quickly, so harvest it on time.',
+      growTime: 1500, thirst: 0.9, water: [40, 70], value: 16000, seedCost: 6000,
+      unlock: 2500000, unlockSun: 10, sunshine: 3, primeFactor: 0.15,
+      likes: ['tonic', 'jam'], dayMult: 1, nightMult: 1, harvests: 1,
+      colors: { leaf: '#5aa7a0', leaf2: '#3a8580', accent: '#9fe8ff', seed: '#c8e8ff' }
+    },
+
+    // ---- Rare plants: never in the shop. During their event (`rare`) someone
+    // sometimes offers one seed for `price` coins (see RARE). Perennials with
+    // a special reward per harvest. Keep them at the end of this list.
+    {
+      id: 'lily', name: 'Rainbow Lily', latin: 'Lilium arcuscaeli', rare: 'rain', price: 40000, seedCost: 40000,
+      offer: 'A soggy frog hops in with a Rainbow Lily bulb that the rain washed up.',
+      blurb: 'Only sprouts from bulbs washed up by a proper downpour. Every petal is a different colour.',
+      quirk: 'Rare. 4 harvests from one bulb, grows twice as fast in the rain, and every harvest gives 1 Sunshine.',
+      growTime: 600, thirst: 1.3, water: [50, 95], value: 8500, sunshine: 1, sunStars: 1, rainMult: 2,
+      likes: ['gel'], dayMult: 1, nightMult: 1, harvests: 4, regrow: 0.5,
+      colors: { leaf: '#58b06a', leaf2: '#3a8f55', accent: '#ff7eb6', seed: '#9fd8ff' }
+    },
+    {
+      id: 'agave', name: 'Ember Agave', latin: 'Agave scorchii', rare: 'heat', price: 60000, seedCost: 60000,
+      offer: 'A sunburnt lizard scuttles in, offering an Ember Agave pup for a shady spot and some coins.',
+      blurb: 'Grows where everything else gives up. The tips of its leaves glow like coals.',
+      quirk: 'Rare. Barely drinks, and a heatwave makes it grow 3 times as fast instead of drying it out. 3 harvests; harvesting during a heatwave pays double.',
+      growTime: 900, thirst: 0.15, water: [6, 40], value: 17000, heatMult: 3, heatProof: true, heatPay: 2,
+      likes: ['nitro'], dayMult: 1.1, nightMult: 0.9, harvests: 3, regrow: 0.5,
+      colors: { leaf: '#6fa8a0', leaf2: '#4f8a82', accent: '#ff7a2a', seed: '#c9784a' }
+    },
+    {
+      id: 'honey', name: 'Honeyheart', latin: 'Mellifera cordata', rare: 'bee', price: 100000, seedCost: 100000,
+      offer: 'The lucky bee drops off a Honeyheart seed, with compliments from the queen.',
+      blurb: 'Heart-shaped leaves and little golden bells that drip real honey. Bees adore it.',
+      quirk: 'Rare. 4 harvests, each with a Comet Crumb, and while it grows the lucky bee drops by more often.',
+      growTime: 720, thirst: 1.0, water: [35, 85], value: 21000, crumbs: 1,
+      likes: ['jam'], dayMult: 1, nightMult: 1, harvests: 4, regrow: 0.5,
+      colors: { leaf: '#7cc35a', leaf2: '#5a9f45', accent: '#ffc23c', seed: '#e0a82a' }
+    },
+    {
+      id: 'mandrake', name: "Wanderer's Mandrake", latin: 'Mandragora vagabunda', rare: 'merchant', price: 300000, seedCost: 300000,
+      offer: 'The merchant lowers his voice: a Wanderer\'s Mandrake root, very hush-hush, very pricey.',
+      blurb: 'A root with opinions. It sleeps most of the time and makes a terrible fuss when it is pulled up.',
+      quirk: 'Rare. The only plant that gives Heirloom Seeds: 1 per harvest at 4 stars or better. 3 harvests. It shrieks.',
+      growTime: 1200, thirst: 0.8, water: [30, 75], value: 70000, heirlooms: 1, heirStars: 4, sound: 'shriek',
+      likes: ['tonic'], dayMult: 0.9, nightMult: 1.2, harvests: 3, regrow: 0.6,
+      colors: { leaf: '#5f9e4a', leaf2: '#447a38', accent: '#b98ad9', seed: '#d9b98a' }
     }
   ];
 
@@ -307,7 +384,7 @@
     }
   ];
 
-  // Rare consumable, only from the travelling merchant, orders and the Special tab.
+  // Rare consumable, only from the travelling merchant, orders, the Special tab and Honeyheart harvests.
   CONFIG.CRUMBS = {
     id: 'crumbs', name: 'Comet Crumbs', short: 'Crumbs', shape: 'star', color: '#a58bff', key: 'T',
     effect: 'Instantly adds 25% growth and a permanent pinch of quality.',
@@ -478,8 +555,8 @@
     { id: 'hPots', cat: 'heirloom', currency: 'heirlooms', name: 'Inherited Shelves', max: 4, cost: 5, mult: 2, base: 0, per: 2,
       desc: 'Some shelves stay up between seasons.',
       fmt: function (v) { return v ? 'Start with ' + (CONFIG.START.slots + v) + ' pots' : 'Start with ' + CONFIG.START.slots + ' pots'; } },
-    { id: 'hSpecies', cat: 'heirloom', currency: 'heirlooms', name: 'Seed Library', max: 5, cost: 4, mult: 2,
-      values: [1, 3, 5, 6, 7, 8],
+    { id: 'hSpecies', cat: 'heirloom', currency: 'heirlooms', name: 'Seed Library', max: 6, cost: 4, mult: 2,
+      values: [1, 3, 5, 7, 8, 10, 11],   // keep everything up to Grumpy Prickle, Berry, Glimmercap, Orchid, Lotus, Rose
       desc: 'Keeps species unlocked between seasons, starting with the cheapest.',
       fmt: function (v) { return v > 1 ? 'Keep everything up to ' + CONFIG.SPECIES[v - 1].name : 'Only Pepperwink'; } },
     { id: 'hHelpers', cat: 'heirloom', currency: 'heirlooms', name: 'Loyal Helpers', max: 3, cost: 8, mult: 2.5, base: 0, per: 1,
@@ -621,8 +698,12 @@
     { id: 'star5', name: 'Blue Ribbon', desc: 'Harvest a 5-star plant.', goal: 1, value: function (s) { return s.stats.fiveStars; } },
     { id: 'star5x25', name: 'County Fair Regular', desc: 'Harvest 25 five-star plants.', goal: 25, value: function (s) { return s.stats.fiveStars; } },
     { id: 'golden', name: 'Midas Thumb', desc: 'Harvest a golden plant.', goal: 1, value: function (s) { return s.stats.goldens; } },
-    { id: 'botanist', name: 'Botanist', desc: 'Harvest every species at least once.', goal: 8,
-      value: function (s) { var n = 0; for (var k in s.stats.bySpecies) { if (s.stats.bySpecies[k] > 0) n++; } return n; } },
+    { id: 'botanist', name: 'Botanist', desc: 'Harvest every shop plant at least once.',
+      goal: CONFIG.SPECIES.filter(function (sp) { return !sp.rare; }).length,
+      value: function (s) { return CONFIG.SPECIES.filter(function (sp) { return !sp.rare && s.stats.bySpecies[sp.id] > 0; }).length; } },
+    { id: 'rarities', name: 'Rare Collector', desc: 'Harvest all four rare plants from the events.',
+      goal: CONFIG.SPECIES.filter(function (sp) { return sp.rare; }).length,
+      value: function (s) { return CONFIG.SPECIES.filter(function (sp) { return sp.rare && s.stats.bySpecies[sp.id] > 0; }).length; } },
     { id: 'pots10', name: 'Room to Grow', desc: 'Own 10 pots.', goal: 10, value: function (s) { return s.pots.length; } },
     { id: 'pots20', name: 'Full House', desc: 'Own all 20 pots.', goal: 20, value: function (s) { return s.pots.length; } },
     { id: 'order1', name: 'Special Delivery', desc: 'Complete a chalkboard order.', goal: 1, value: function (s) { return s.stats.ordersDone; } },

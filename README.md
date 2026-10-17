@@ -42,9 +42,23 @@ That's it. No install, no server, works straight from `file://`.
 | 🌵 | **Grumpy Prickle** | Barely drinks. Judges you when you overwater it. |
 | 🌻 | **Sunny Goliath** | Grows faster in daylight, naps at night. |
 | 🍓 | **Jamboree Berry** | Three harvests from a single seed. |
+| 🎃 | **Plumpkin** | Thirsty and slow. A perfect 5-star one is a prize pumpkin and sells for double. |
 | 🍄 | **Glimmercap** | Glows in the dark and grows best at night. |
 | 🌸 | **Moonveil Orchid** | Slow, fussy about water, worth a small fortune. |
+| 🌶️ | **Firecracker Pepper** | Grows twice as fast in a heatwave and crackles with sparks when ripe. |
 | 🪷 | **Stardust Lotus** | Legendary. Fell out of the night sky and stayed. |
+| 🌹 | **Crystalbloom Rose** | A rose of living glass. Worth a fortune, but quickly past its prime. |
+
+### ✨ Rare plants (only from events)
+
+Never sold in the shop. Once you have unlocked the Moonveil Orchid, someone sometimes offers one seed when an event starts (about once an hour per plant). Pricey, but each gives several harvests and a special reward, and they come with you into a New Season.
+
+| | Plant | Found | Seed | Why it's worth it |
+| :-: | --- | --- | --: | --- |
+| 🌈 | **Rainbow Lily** | Rainy days | 40,000 | 4 harvests, twice as fast in the rain, 1 Sunshine every harvest |
+| 🔥 | **Ember Agave** | Heatwaves | 60,000 | Barely drinks, 3× faster in a heatwave, 3 harvests, double price when harvested in a heatwave |
+| 🍯 | **Honeyheart** | Lucky bee | 100,000 | 4 harvests with a Comet Crumb each; the lucky bee visits more often |
+| 🥕 | **Wanderer's Mandrake** | Travelling merchant | 300,000 | The only plant that gives Heirloom Seeds (1 per harvest at 4+ stars). It shrieks. |
 
 ## 🧪 The good stuff
 
@@ -60,6 +74,7 @@ Each species loves one nutrient and gets 50% more out of it. *Nitro + Gel* and *
 
 ## 🎮 Features
 
+- 🪴 **15 plants**: 11 to unlock in the shop and 4 rare ones that only turn up during events
 - 🌦️ **Random events**: pests, heatwaves, rainy days, a lucky bee and a travelling merchant
 - 🌗 **Day and night**: moving light shafts, lanterns, grow lamps, fireflies and glowing plants
 - 🛠️ **50 upgrades**: 37 in seven categories, from a bigger watering can to razor-sharp shears, plus 13 Heirloom upgrades that never reset
@@ -69,7 +84,7 @@ Each species loves one nutrient and gets 50% more out of it. *Nitro + Gel* and *
 - 📋 **Chalkboard orders**: customers ask for specific plants and pay a bonus
 - ⭐ **Golden plants**: well-kept plants sometimes mature golden for triple price
 - ☀️ **Sunshine**: a rare second currency for premium upgrades
-- 📖 **Plant Almanac** and **30 awards** to collect
+- 📖 **Plant Almanac** and **31 awards** to collect
 - 🐈 **A barn cat** that wanders in and likes being petted, with five extra coats to collect: Lexie the brown tabby, fluffy Maya and Alice, Coco the Siamese and Mosh the British Shorthair
 - 💌 **Visit friends**: copy a visit code for your barn, send it to a friend, and stroll through each other's barns
 - 🎁 **Gifts**: wrap coins, seeds and nutrients into a gift code for a friend
@@ -153,6 +168,7 @@ The loop uses `requestAnimationFrame` with a fixed 10 Hz logic step, so the game
 - **Offline progress is fair by rule.** Time away is capped and slowed. While away there are no random events, nothing takes damage, a neighbour keeps pots from drying out completely, and ripe plants wait for you.
 - **No dead ends.** If you have no coins, no seeds and nothing growing, a neighbour leaves two seeds on your doorstep.
 - **Saves are sanitised field by field**, so a damaged save loads as far as it can and never crashes the game.
+- **Rare plants are event-only perennials.** They give every event a little extra excitement, and because one seed gives several harvests and survives a New Season, a pricey purchase never feels wasted. The Seed Squirrel never spends a rare seed on its own.
 
 ## 📈 Pacing
 
@@ -179,7 +195,7 @@ And the five bosses against the same kind of scripted player (4 clicks per secon
 
 ## 🧪 Tests
 
-Open **`tests/tests.html`** in a browser to run 53 logic tests and the balance simulation.
+Open **`tests/tests.html`** in a browser to run 56 logic tests and the balance simulation.
 
 With Node installed you can also run:
 

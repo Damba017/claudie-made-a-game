@@ -62,7 +62,8 @@
       unlocked: { mint: true },
       discovered: { species: {}, nutrients: {} },
       upgrades: {},
-      events: { next: C.EVENTS.firstDelay, heat: 0, rain: 0, bee: 0, beeClicked: false, merchant: 0, offer: null },
+      events: { next: C.EVENTS.firstDelay, heat: 0, rain: 0, bee: 0, beeClicked: false, merchant: 0, offer: null,
+        rare: null },                         // a rare seed offer { species, price, t } (see CONFIG.RARE)
       orders: [],
       orderCooldown: [],
       orderSeq: 1,

@@ -155,6 +155,10 @@
       st.events.beeClicked = !!e.beeClicked;
       st.events.offer = st.events.merchant > 0 ? cleanOffer(e.offer) : null;
       if (!st.events.offer) st.events.merchant = 0;
+      // A rare seed offer that was still waiting (the price always comes from the config).
+      var ro = e.rare, rsp = isObj(ro) && C.SPECIES_BY_ID[ro.species];
+      var rt = rsp ? num(ro.t, 0, 0, C.RARE.offerTime) : 0;
+      st.events.rare = rsp && rsp.rare && rt > 0 ? { species: rsp.id, price: rsp.price, t: rt } : null;
     }
 
     for (i = 0; i < C.ORDERS.count; i++) {
@@ -416,6 +420,7 @@
       speed: 1, events: true, particles: true, shake: true, reducedMotion: false,
       colorblind: false, uiScale: 1, fps: false,
       theme: 0,                                    // 0 = follow the computer, 1 = light, 2 = dark
+      confirmDig: true,                            // ask before the shovel throws away a living plant
       adminNoCaps: false, adminNoCooldown: false   // admin panel switches (only used on the owner's computer)
     };
   };

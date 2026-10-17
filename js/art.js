@@ -117,7 +117,8 @@
   // Plants
   // ==================================================================
   // Approximate full-grown height in units, used to place indicators.
-  var HEIGHT = { mint: 78, fern: 82, cactus: 88, sunflower: 146, berry: 70, shroom: 62, orchid: 122, lotus: 84 };
+  var HEIGHT = { mint: 78, fern: 82, cactus: 88, sunflower: 146, berry: 70, pumpkin: 62, shroom: 62, orchid: 122,
+    pepper: 92, lotus: 84, crystal: 112, lily: 108, agave: 100, honey: 86, mandrake: 64 };
 
   Art.plantHeight = function (p) {
     if (p.dead) return 30;
@@ -457,6 +458,271 @@
     }
     c.restore();
     if (P.glow && !P.dead) P.glow(tip.x, tip.y - 8, 60 * bk, P.mature ? P.pal.accent : '#7ad8ff', (0.12 + 0.35 * P.night) * bk);
+  };
+
+  SPECIES_ART.pumpkin = function (P) {
+    var c = P.ctx, k = P.k, i;
+    // Big lobed leaves on a sprawling vine, drawn first so the pumpkin sits in front.
+    var nl = 2 + Math.floor(k * 3.5);
+    for (i = 0; i < nl; i++) {
+      var side = i % 2 ? 1 : -1, f = (i + 1) / (nl + 1);
+      var len = (12 + 28 * k) * (0.8 + 0.2 * rnd(P.seed + i * 1.9));
+      var ang = (side > 0 ? -0.35 - f * 0.9 : PI + 0.35 + f * 0.9) + side * P.droop * 0.6 + P.sway * 2;
+      var lx = Math.cos(ang) * len, ly = Math.sin(ang) * len * 0.85 - 3, r = 6 + 9 * k;
+      c.strokeStyle = tint(P, P.pal.leaf2); c.lineWidth = 2; c.lineCap = 'round';
+      line(c, 0, -2, lx, ly);
+      c.fillStyle = tint(P, i % 2 ? P.pal.leaf : P.pal.leaf2);
+      circle(c, lx, ly - r * 0.15, r * 0.72);
+      circle(c, lx - r * 0.5, ly + r * 0.2, r * 0.52);
+      circle(c, lx + r * 0.5, ly + r * 0.2, r * 0.52);
+      c.strokeStyle = tint(P, P.pal.leaf2); c.lineWidth = 1;
+      line(c, lx, ly + r * 0.3, lx, ly - r * 0.6);
+    }
+    if (k > 0.25) {          // a curly tendril
+      c.strokeStyle = tint(P, P.pal.leaf); c.lineWidth = 1.3;
+      c.beginPath(); c.arc(-16 - 6 * k, -14 - 8 * k, 3 + 2 * k, 0, PI * 1.5); c.stroke();
+    }
+    if (k <= 0.3) return;
+    // The pumpkin: green, then yellow, then orange, and rounder all the time.
+    var pk = (k - 0.3) / 0.7, R = 4 + 20 * pk;
+    var w = R * 1.3, h = R * (0.85 - P.wilt * 0.12), cx = 2 + P.sway * 10, cy = -h + 2;
+    var col = P.mature ? [P.pal.accent, '#c9661a', '#ffb05a']
+      : (pk > 0.7 ? ['#e8c24a', '#c9a032', '#f6dd78'] : ['#8cc152', '#6a9f3a', '#b3dd7a']);
+    c.fillStyle = tint(P, col[1]);
+    ellipse(c, cx - w * 0.42, cy, w * 0.42, h); ellipse(c, cx + w * 0.42, cy, w * 0.42, h);
+    c.fillStyle = tint(P, col[0]);
+    ellipse(c, cx - w * 0.2, cy, w * 0.4, h * 0.98); ellipse(c, cx + w * 0.2, cy, w * 0.4, h * 0.98);
+    c.fillStyle = tint(P, col[2]);
+    ellipse(c, cx, cy, w * 0.26, h * 0.99);
+    if (!P.silhouette) { c.fillStyle = 'rgba(255,255,255,0.28)'; ellipse(c, cx - w * 0.3, cy - h * 0.4, w * 0.12, h * 0.25, -0.4); }
+    c.fillStyle = tint(P, '#7a5a2a'); rr(c, cx - 2.2, cy - h - 5, 4.4, 7, 2); c.fill();
+  };
+
+  SPECIES_ART.pepper = function (P) {
+    var c = P.ctx, k = P.k, i, pt = stem(P, 0, 18 + 70 * k, 0.04, 2.4 + 1.2 * k, tint(P, P.pal.leaf2));
+    var nb = 2 + Math.floor(k * 4);
+    for (i = 0; i < nb; i++) {
+      var q = pt((i + 1) / (nb + 1)), side = i % 2 ? 1 : -1, len = (8 + 13 * k) * (1 - i / (nb + 1) * 0.3);
+      c.fillStyle = tint(P, i % 2 ? P.pal.leaf : P.pal.leaf2);
+      leaf(c, q.x, q.y, leafAng(P, side, 0.3), len * 1.4, len * 0.5);
+      leaf(c, q.x, q.y, leafAng(P, -side, 0.9), len, len * 0.4);
+    }
+    var top = pt(1);
+    c.fillStyle = tint(P, P.pal.leaf);
+    leaf(c, top.x, top.y, -PI / 2 - 0.45, 7 + 5 * k, 3.2); leaf(c, top.x, top.y, -PI / 2 + 0.45, 7 + 5 * k, 3.2);
+    if (k <= 0.55) return;
+    // Chillies hanging from the branches: green, then orange, then fiery red.
+    var fk = (k - 0.55) / 0.45, n = 2 + Math.floor(fk * 3);
+    for (i = 0; i < n; i++) {
+      var q2 = pt(0.38 + i * 0.12), s2 = i % 2 ? 1 : -1, px = q2.x + s2 * (4 + 3 * fk), py = q2.y + 2;
+      var len2 = 6 + 11 * fk, w2 = 2.2 + 2.4 * fk;
+      var col = P.mature ? P.pal.accent : (fk > 0.6 ? '#f2a03a' : '#7fbf4f');
+      c.save(); c.translate(px, py); c.rotate(s2 * 0.25 + P.sway * 3 + P.droop * s2 * 0.5);
+      c.fillStyle = tint(P, col);
+      c.beginPath(); c.moveTo(-w2, 0); c.quadraticCurveTo(-w2, len2 * 0.7, s2 * w2 * 0.6, len2);
+      c.quadraticCurveTo(w2, len2 * 0.5, w2, 0); c.closePath(); c.fill();
+      if (!P.silhouette) { c.fillStyle = 'rgba(255,255,255,0.35)'; ellipse(c, -w2 * 0.35, len2 * 0.3, w2 * 0.25, len2 * 0.22); }
+      c.fillStyle = tint(P, P.pal.leaf2); rr(c, -w2 * 0.8, -2.5, w2 * 1.6, 3, 1.5); c.fill();
+      c.restore();
+      if (P.mature && !P.dead && !P.silhouette) {     // crackling sparks
+        var tw = (Math.sin(P.t * 7 + i * 2.1) + 1) / 2;
+        c.fillStyle = 'rgba(255,214,90,' + (0.35 + 0.65 * tw).toFixed(2) + ')';
+        star(c, px + s2 * (w2 + 4), py + len2 * 0.5 - tw * 7, 1.2 + tw * 2, 4, 0.35);
+      }
+    }
+  };
+
+  // Glass facets of the Crystalbloom Rose: [count, radius, rotation, colour, second colour] per ring.
+  var CRYSTAL_RINGS = [[7, 22, 0, '#7fd6f5', '#5cc3ea'], [6, 15.5, 0.45, '#b4ecff', '#93def7'], [5, 9, 0.2, '#e4f9ff', '#c8f1ff']];
+
+  SPECIES_ART.crystal = function (P) {
+    var c = P.ctx, k = P.k, i, pt = stem(P, 0, 20 + 86 * k, 0.05, 2.1, tint(P, P.pal.leaf2));
+    var nl = 1 + Math.floor(k * 3);
+    for (i = 0; i < nl; i++) {
+      var q = pt(0.22 + i * 0.2), side = i % 2 ? 1 : -1, s = 6 + 6 * k;
+      c.fillStyle = tint(P, i % 2 ? P.pal.leaf : P.pal.leaf2);
+      leaf(c, q.x, q.y, leafAng(P, side, 0.55), s * 1.4, s * 0.6);
+      c.fillStyle = tint(P, P.pal.leaf2);        // a thorn
+      c.beginPath(); c.moveTo(q.x, q.y + 7); c.lineTo(q.x - side * 4, q.y + 4.5); c.lineTo(q.x, q.y + 3); c.fill();
+    }
+    if (k <= 0.4) return;
+    var bk = (k - 0.4) / 0.6, tip = pt(1);
+    c.save(); c.translate(tip.x, tip.y); c.rotate(P.sway * 1.5 + P.droop * 0.8);
+    if (!P.mature) {           // a closed, slowly frosting bud
+      var s2 = 4 + 8 * bk;
+      c.fillStyle = tint(P, P.pal.leaf);
+      leaf(c, 0, 2, -PI / 2 - 0.55, s2 * 1.1, s2 * 0.38); leaf(c, 0, 2, -PI / 2 + 0.55, s2 * 1.1, s2 * 0.38);
+      c.fillStyle = tint(P, bk > 0.5 ? P.pal.accent : P.pal.leaf);
+      c.beginPath(); c.moveTo(0, -s2 * 1.7); c.lineTo(s2 * 0.7, -s2 * 0.6); c.lineTo(0, s2 * 0.2); c.lineTo(-s2 * 0.7, -s2 * 0.6);
+      c.closePath(); c.fill();
+    } else {
+      c.save(); c.scale(1, 0.82);
+      for (var rg = 0; rg < CRYSTAL_RINGS.length; rg++) {
+        var ring = CRYSTAL_RINGS[rg], n = ring[0], R = ring[1], spread = PI / n * 0.95;
+        for (var j = 0; j < n; j++) {
+          var a = -PI / 2 + ring[2] + j * PI * 2 / n;
+          c.fillStyle = tint(P, j % 2 ? ring[3] : ring[4]);
+          c.beginPath(); c.moveTo(0, 0);
+          c.lineTo(Math.cos(a - spread) * R * 0.75, Math.sin(a - spread) * R * 0.75);
+          c.lineTo(Math.cos(a) * R, Math.sin(a) * R);
+          c.lineTo(Math.cos(a + spread) * R * 0.75, Math.sin(a + spread) * R * 0.75);
+          c.closePath(); c.fill();
+          if (!P.silhouette) { c.strokeStyle = 'rgba(255,255,255,0.55)'; c.lineWidth = 0.7; c.stroke(); }
+        }
+      }
+      c.fillStyle = tint(P, '#ffffff'); circle(c, 0, 0, 2.2);
+      c.restore();
+      if (!P.silhouette && !P.dead) {        // glints that come and go
+        c.fillStyle = '#ffffff';
+        for (i = 0; i < 3; i++) {
+          var tw = (Math.sin(P.t * 2.2 + i * 2.1) + 1) / 2;
+          if (tw > 0.55) star(c, Math.cos(i * 2.1) * 17, -4 + Math.sin(i * 2.1) * 12, (tw - 0.55) * 8, 4, 0.3);
+        }
+      }
+    }
+    c.restore();
+    if (P.glow && !P.dead) P.glow(tip.x, tip.y - 4, 42 * bk, P.pal.accent, (0.08 + 0.3 * P.night) * bk);
+  };
+
+  // ---- Rare plants ----------------------------------------------------
+  var RAINBOW = ['#ff6b6b', '#ffa94d', '#ffd43b', '#69db7c', '#4dabf7', '#9775fa'];
+
+  SPECIES_ART.lily = function (P) {
+    var c = P.ctx, k = P.k, nl = 2 + Math.floor(k * 3), i, j;
+    for (i = 0; i < nl; i++) {          // long strap leaves
+      var side = i % 2 ? 1 : -1, len = (16 + 34 * k) * (1 - i * 0.08);
+      var ang = side > 0 ? -1.2 + i * 0.12 + P.droop * 0.8 : PI + 1.2 - i * 0.12 - P.droop * 0.8;
+      c.fillStyle = tint(P, i % 2 ? P.pal.leaf : P.pal.leaf2);
+      leaf(c, side * 2, 0, ang + P.sway * 2, len, 3 + 2 * k);
+    }
+    if (k <= 0.3) return;
+    var sk = (k - 0.3) / 0.7, pt = stem(P, 0, 24 + 76 * sk, -0.04, 2.2, tint(P, P.pal.leaf2));
+    if (sk < 0.4) return;
+    var nf = P.mature ? 3 : 2;
+    for (i = 0; i < nf; i++) {
+      var q = pt(1 - i * 0.17), s2 = i === 0 ? 0 : (i % 2 ? 1 : -1), fx = q.x + s2 * 9, fy = q.y + 2 + i * 2;
+      if (s2) { c.strokeStyle = tint(P, P.pal.leaf2); c.lineWidth = 1.4; line(c, q.x, q.y, fx, fy); }
+      c.save(); c.translate(fx, fy); c.rotate(s2 * 0.55 + P.droop * 0.7 + P.sway * 2);
+      if (!P.mature) {
+        c.fillStyle = tint(P, sk > 0.75 ? '#ffd1e6' : P.pal.leaf);
+        ellipse(c, 0, -5, 2.4 + 1.6 * sk, 5.5 + 4 * sk);
+      } else {                  // a trumpet with six petals, every one a different colour
+        var r = 15 - i * 1.8;
+        for (j = 0; j < 6; j++) {
+          c.fillStyle = tint(P, RAINBOW[(j + i * 2) % 6]);
+          leaf(c, 0, 0, -PI / 2 + (j - 2.5) * 0.4, r * 1.25, r * 0.36);
+        }
+        c.strokeStyle = tint(P, '#c98a2a'); c.lineWidth = 0.9;
+        for (j = -1; j <= 1; j++) line(c, 0, 0, j * 3, -r * 0.85);
+        c.fillStyle = tint(P, '#fff6d0'); circle(c, 0, -1, 2.2);
+      }
+      c.restore();
+    }
+    if (P.glow && P.mature && !P.dead) { var top = pt(1); P.glow(top.x, top.y - 6, 46, '#c9a6ff', 0.1 + 0.3 * P.night); }
+  };
+
+  SPECIES_ART.agave = function (P) {
+    var c = P.ctx, k = P.k, n = 5 + Math.floor(k * 6), i, order = [];
+    for (i = 0; i < n; i++) order.push((i / (n - 1)) * 2 - 1);
+    order.sort(function (a, b) { return Math.abs(b) - Math.abs(a); });   // outer leaves first
+    for (i = 0; i < order.length; i++) {
+      var f = order[i], len = (12 + 34 * k) * (1 - Math.abs(f) * 0.32) * (0.88 + 0.12 * rnd(P.seed + i * 2.3));
+      var ang = -PI / 2 + f * (1.2 + P.droop * 0.5) + P.sway * 1.5;
+      var tx = Math.cos(ang) * len, ty = Math.sin(ang) * len * (1 - P.droop * 0.4) - 2;
+      c.fillStyle = tint(P, i % 2 ? P.pal.leaf : P.pal.leaf2);
+      leaf(c, 0, -2, Math.atan2(ty + 2, tx), Math.sqrt(tx * tx + (ty + 2) * (ty + 2)), 3.5 + 3.5 * k);
+      c.fillStyle = tint(P, P.pal.accent);              // a glowing ember tip
+      circle(c, tx, ty, 1.4 + 1.2 * k);
+    }
+    if (!P.mature) return;
+    // A tall flower spike crowned with smouldering blossoms.
+    var tip = stem(P, 0, 82, 0.02, 3, tint(P, '#9a7a4a'))(1);
+    for (i = 0; i < 7; i++) {
+      var a2 = i * 0.9, bx = tip.x + Math.cos(a2) * (4 + i * 0.6), by = tip.y + Math.sin(a2) * 3 - i * 0.4;
+      var flicker = P.dead || P.silhouette ? 0 : Math.sin(P.t * 6 + i * 1.7) * 0.6;
+      c.fillStyle = tint(P, i % 2 ? '#ffb347' : P.pal.accent);
+      circle(c, bx, by, 4 + (i % 3) * 1.2 + flicker);
+    }
+    if (P.glow && !P.dead) P.glow(tip.x, tip.y, 46, P.pal.accent, 0.18 + 0.32 * P.night);
+  };
+
+  SPECIES_ART.honey = function (P) {
+    var c = P.ctx, k = P.k, ns = 1 + Math.floor(k * 2.6), j, i;
+    var xs = [0, -9, 10], hs = [1, 0.78, 0.86], leans = [0.02, -0.32, 0.3];
+    for (j = ns - 1; j >= 0; j--) {
+      var pt = stem(P, xs[j] * 0.5, (16 + 58 * k) * hs[j], leans[j], 1.9, tint(P, P.pal.leaf2));
+      var nl = 1 + Math.floor(k * 3);
+      for (i = 0; i < nl; i++) {          // heart-shaped leaves, tip on the stem
+        var t = 0.3 + i * 0.22, q = pt(t), side = (i + j) % 2 ? 1 : -1, r = (4 + 5 * k) * (1 - t * 0.3);
+        c.save(); c.translate(q.x, q.y); c.rotate(side * (1.1 + P.droop * 0.8) + P.sway * 2);
+        c.fillStyle = tint(P, i % 2 ? P.pal.leaf : P.pal.leaf2);
+        Art.heart(c, 0, -r * 0.9, r);
+        c.restore();
+      }
+      var tip = pt(1);
+      if (P.mature) {            // a golden bell with a honey drop that slides down and falls
+        c.save(); c.translate(tip.x, tip.y); c.rotate(P.droop * 0.8 + P.sway * 2); c.scale(1.3, 1.3);
+        c.fillStyle = tint(P, P.pal.accent);
+        c.beginPath(); c.moveTo(-6, 6); c.quadraticCurveTo(-6, -4, 0, -5); c.quadraticCurveTo(6, -4, 6, 6);
+        c.quadraticCurveTo(0, 8.5, -6, 6); c.fill();
+        c.fillStyle = tint(P, '#e09a1a'); ellipse(c, 0, 6.3, 6, 1.6);
+        if (!P.silhouette && !P.dead) {
+          var d = (P.t * 0.6 + j * 0.37) % 1;
+          Art.droplet(c, 2, 8 + d * 10, 1.6 + d * 0.6, true, '#f2b21c');
+        }
+        c.restore();
+      } else if (k > 0.5) {
+        c.fillStyle = tint(P, k > 0.8 ? '#ffe08a' : P.pal.leaf); ellipse(c, tip.x, tip.y + 2, 2.6, 3.6);
+      }
+    }
+    if (P.glow && P.mature && !P.dead) P.glow(0, -50, 50, P.pal.accent, 0.1 + 0.25 * P.night);
+  };
+
+  SPECIES_ART.mandrake = function (P) {
+    var c = P.ctx, k = P.k, i;
+    var rk = clamp01((k - 0.35) / 0.65), bh = 3 + 20 * rk, bw = 8 + 8 * rk, lean = P.sway * 8 + P.droop * 3;
+    if (rk > 0) {
+      // The root's head peeking out of the soil.
+      c.fillStyle = tint(P, '#e2c49a');
+      c.beginPath(); c.moveTo(-bw, 2);
+      c.bezierCurveTo(-bw, -bh * 0.9, lean - bw * 0.5, -bh - 2, lean, -bh - 2);
+      c.bezierCurveTo(lean + bw * 0.5, -bh - 2, bw, -bh * 0.9, bw, 2); c.closePath(); c.fill();
+      c.strokeStyle = tint(P, '#b8936a'); c.lineWidth = 1;
+      line(c, -bw * 0.55, -bh * 0.25, -bw * 0.2, -bh * 0.3); line(c, bw * 0.3, -bh * 0.15, bw * 0.6, -bh * 0.2);
+      if (P.mature) {          // little root arms, waving to be picked
+        var wave = P.dead || P.silhouette ? 0 : Math.sin(P.t * 3) * 0.4;
+        c.strokeStyle = tint(P, '#d9b98a'); c.lineWidth = 2.4; c.lineCap = 'round';
+        c.beginPath(); c.moveTo(-bw * 0.9, -bh * 0.35); c.quadraticCurveTo(-bw * 1.5, -bh * 0.6, -bw * 1.4, -bh * (0.95 + wave)); c.stroke();
+        c.beginPath(); c.moveTo(bw * 0.9, -bh * 0.35); c.quadraticCurveTo(bw * 1.5, -bh * 0.6, bw * 1.4, -bh * (0.95 - wave)); c.stroke();
+      }
+      if (rk > 0.45 && !P.silhouette) {
+        var ey = -bh * 0.55, ex = bw * 0.32, fx = lean * 0.5;
+        c.strokeStyle = PAL.ink; c.fillStyle = PAL.ink; c.lineWidth = 1.3; c.lineCap = 'round';
+        if (P.dead) {
+          line(c, fx - ex - 1.5, ey - 1.5, fx - ex + 1.5, ey + 1.5); line(c, fx - ex + 1.5, ey - 1.5, fx - ex - 1.5, ey + 1.5);
+          line(c, fx + ex - 1.5, ey - 1.5, fx + ex + 1.5, ey + 1.5); line(c, fx + ex + 1.5, ey - 1.5, fx + ex - 1.5, ey + 1.5);
+        } else if (P.mature) {   // wide awake and about to complain
+          circle(c, fx - ex, ey, 1.7); circle(c, fx + ex, ey, 1.7);
+          c.fillStyle = '#7a2a3a'; ellipse(c, fx, ey + 5, 2.2, 2.8);
+        } else {                  // fast asleep
+          c.beginPath(); c.arc(fx - ex, ey, 1.8, 0.15, PI - 0.15); c.stroke();
+          c.beginPath(); c.arc(fx + ex, ey, 1.8, 0.15, PI - 0.15); c.stroke();
+          line(c, fx - 1.5, ey + 5, fx + 1.5, ey + 5);
+        }
+        c.fillStyle = 'rgba(255,130,150,0.45)'; circle(c, fx - ex - 2.5, ey + 3, 1.9); circle(c, fx + ex + 2.5, ey + 3, 1.9);
+      }
+    }
+    // The leafy tuft on its head.
+    var topY = rk > 0 ? -bh - 1 : -1, tx = rk > 0 ? lean : 0, nl = 3 + Math.floor(k * 4);
+    for (i = 0; i < nl; i++) {
+      var f = (i / (nl - 1)) * 2 - 1, len = (8 + 22 * k) * (1 - Math.abs(f) * 0.25);
+      c.fillStyle = tint(P, i % 2 ? P.pal.leaf : P.pal.leaf2);
+      leaf(c, tx, topY, -PI / 2 + f * (0.85 + P.droop * 0.6) + P.sway * 2, len, 3 + 2 * k);
+    }
+    if (P.mature) {
+      c.fillStyle = tint(P, P.pal.accent);
+      for (i = 0; i < 3; i++) circle(c, tx + (i - 1) * 7, topY - 18 - (i === 1 ? 5 : 0), 2.6);
+    }
   };
 
   /**
@@ -1020,6 +1286,10 @@
     Art.drawPlant(c, { species: speciesId, growth: 1, water: (sp.water[0] + sp.water[1]) / 2, health: 100, ripeAge: 0,
       dead: false, golden: false, harvestsLeft: 1 }, { seed: 1.3, t: 0, sway: 0, night: 0 });
     c.restore();
+    if (sp.rare) {           // rare seeds come in a gold-trimmed packet
+      c.strokeStyle = '#e0a82a'; c.lineWidth = 2; rr(c, -15, -21, 30, 40, 4); c.stroke();
+      c.fillStyle = '#ffd24a'; star(c, 11, -17, 5, 5, 0.45);
+    }
   };
 
   /** A sitting cat in the given coat, for the shop. */

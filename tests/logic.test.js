@@ -765,7 +765,7 @@
     var n = L.prestige(st).state;
     assert(n.coins === C.START.coins + 250000, 'Nest Egg coins');
     assert(n.pots.length === C.START.slots + 8 && n.upgrades.slots === 8, 'Inherited Shelves');
-    assert(C.SPECIES.every(function (sp) { return n.unlocked[sp.id]; }), 'Seed Library keeps every species');
+    assert(C.SPECIES.every(function (sp) { return sp.rare ? !n.unlocked[sp.id] : n.unlocked[sp.id]; }), 'Seed Library keeps every shop species (never the rare ones)');
     ['spout', 'whistle', 'scythe', 'sprinkler', 'hedgehog', 'squirrel', 'ladybugs'].forEach(function (h) {
       assert(n.upgrades[h] === 1, 'Loyal Helpers keeps ' + h);
     });
@@ -793,6 +793,126 @@
     assert(back.upgrades.lamps === 12 && back.prestige === 50, 'raised levels survive saving');
     var legacy = Save.parse(JSON.stringify({ v: 1, state: { stats: { coinsEarned: 3000000 } } }));
     assert(legacy.seasonEarned === 3000000 && L.canPrestige(legacy), 'old saves count their past earnings as season one');
+  });
+
+  test('new shop plants: the prize Plumpkin, the heat-loving pepper and the brittle rose', function () {
+    var shop = C.SPECIES.filter(function (sp) { return !sp.rare; }), rare = C.SPECIES.filter(function (sp) { return sp.rare; });
+    assert(shop.length === 11 && rare.length === 4, '11 shop plants and 4 rare ones');
+    for (var i = 1; i < shop.length; i++) assert(shop[i].unlock > shop[i - 1].unlock, shop[i].id + ' costs more to unlock than ' + shop[i - 1].id);
+    assert(C.SPECIES.slice(-4).every(function (sp) { return sp.rare; }), 'rare plants sit at the end of the list');
+    // Plumpkin: 5 stars doubles the price.
+    var st = fresh('pumpkin');
+    L.plant(st, 0, 'pumpkin');
+    var p = st.pots[0].plant;
+    p.qSum = 0.79; p.qTime = 1;
+    var four = L.projectedValue(st, p);
+    p.qSum = 0.81;
+    var five = L.projectedValue(st, p);
+    near(five / four, 2 * (0.5 + 1.5 * 0.81) / (0.5 + 1.5 * 0.79), 0.01, 'a prize pumpkin sells for double');
+    // Firecracker Pepper grows twice as fast in a heatwave; others only drink more.
+    var hp = fresh('pepper'); hp.seeds.mint = 1;
+    L.plant(hp, 0, 'pepper'); L.plant(hp, 1, 'mint'); pamper(hp);
+    var pe = hp.pots[0].plant, mi = hp.pots[1].plant, g0 = L.growthRate(hp, pe), m0 = L.growthRate(hp, mi);
+    L.triggerEvent(hp, 'heat');
+    near(L.growthRate(hp, pe), g0 * 2, 1e-9, 'pepper x2 in the heat');
+    near(L.growthRate(hp, mi), m0, 1e-9, 'mint does not care');
+    // Crystalbloom Rose has a short prime.
+    assert(L.primeWindow(C.SPECIES_BY_ID.crystal) < L.primeWindow(C.SPECIES_BY_ID.lotus) / 2, 'the rose goes past its prime quickly');
+    var rose = S.newGame(); rose.coins = 1e9; rose.sunshine = 100;
+    assert(L.unlockSpecies(rose, 'crystal').ok && rose.sunshine === 100 - C.SPECIES_BY_ID.crystal.unlockSun, 'the rose costs coins and Sunshine');
+  });
+
+  test('rare plants: only from event offers, and only once the barn is ready', function () {
+    var st = fresh();
+    st.coins = 1e9;
+    assert(L.unlockSpecies(st, 'lily').reason === 'rare' && L.buySeed(st, 'lily', 1).reason === 'rare', 'never in the shop');
+    L.rng = function () { return 0; };              // every dice roll succeeds
+    L.triggerEvent(st, 'rain');
+    assert(st.events.rare === null, 'no offers before the Moonveil Orchid');
+    st.unlocked[C.RARE.needs] = true;
+    st.events.rain = 0;
+    L.triggerEvent(st, 'rain');
+    assert(st.events.rare && st.events.rare.species === 'lily' && st.events.rare.price === C.SPECIES_BY_ID.lily.price, 'rain brings a Rainbow Lily offer');
+    var q = L.drain().filter(function (e) { return e.type === 'rareOffer'; });
+    assert(q.length === 1, 'announced once');
+    st.coins = 10;
+    assert(L.buyRare(st).reason === 'funds' && st.events.rare, 'needs the coins, offer stays');
+    st.coins = 1e9;
+    assert(L.buyRare(st).ok && st.seeds.lily === 1 && st.events.rare === null, 'bought one bulb');
+    assert(L.buyRare(st).reason === 'gone', 'only once');
+    L.triggerEvent(st, 'heat');
+    assert(st.events.rare.species === 'agave', 'a heatwave brings an Ember Agave');
+    run(st, C.RARE.offerTime + 1);
+    assert(st.events.rare === null, 'the offer moves on after a while');
+    L.plant(st, 0, 'mint');                         // a pest needs a plant, or it turns into a bee visit
+    L.triggerEvent(st, 'pest');
+    assert(st.events.rare === null, 'pests bring nothing');
+    var map = { rain: 'lily', heat: 'agave', bee: 'honey', merchant: 'mandrake' };
+    for (var kind in map) assert(L.rareFor(kind).id === map[kind], kind + ' -> ' + map[kind]);
+    // Rare plants never turn up in orders or the merchant's seed deals.
+    var o = S.newGame(); o.unlocked = {};
+    C.SPECIES.forEach(function (sp) { if (!sp.rare) o.unlocked[sp.id] = true; });
+    L.rng = seeded(9);
+    for (var n = 0; n < 200; n++) {
+      assert(!C.SPECIES_BY_ID[L.makeOrder(o).species].rare, 'orders only want shop plants');
+      var off = L.makeOffer(o);
+      assert(!(off.kind === 'seeds' && C.SPECIES_BY_ID[off.species].rare), 'the merchant never sells rare seeds as a normal deal');
+    }
+  });
+
+  test('rare plants pay off: perks per harvest, Honeyhearts call the bee, and they survive a New Season', function () {
+    function grow(st, slot) { var p = st.pots[slot].plant; p.growth = 1; return p; }
+    var st = S.newGame();
+    st.seeds = { lily: 1, agave: 1, honey: 1, mandrake: 2 };
+    ['lily', 'agave', 'honey', 'mandrake'].forEach(function (id, i) { L.plant(st, i, id); });
+    pamper(st);
+    // Rainbow Lily: twice as fast in rain, 1 Sunshine even at low stars, 4 harvests.
+    var lily = st.pots[0].plant, g = L.growthRate(st, lily);
+    st.events.rain = 10;
+    near(L.growthRate(st, lily), g * 2, 1e-9, 'lily x2 in the rain');
+    st.events.rain = 0;
+    lily.qSum = 0.1; lily.qTime = 1; grow(st, 0);
+    var sun = st.sunshine, r = L.harvest(st, 0);
+    assert(r.ok && st.sunshine === sun + 1, '1 Sunshine per harvest, whatever the stars');
+    assert(st.pots[0].plant && st.pots[0].plant.harvestsLeft === 3, 'it regrows for 3 more harvests');
+    // Ember Agave: shrugs off heat, grows 3x, pays double in a heatwave.
+    var ag = st.pots[1].plant, d = L.drainRate(st, ag), ga = L.growthRate(st, ag);
+    st.events.heat = 10;
+    near(L.drainRate(st, ag), d, 1e-9, 'heat does not dry it out');
+    near(L.growthRate(st, ag), ga * 3, 1e-9, 'x3 in the heat');
+    grow(st, 1);
+    var hot = L.sellValue(st, ag);
+    st.events.heat = 0;
+    near(hot / L.sellValue(st, ag), 2, 0.01, 'double price in a heatwave');
+    // Honeyheart: a Comet Crumb per harvest, and the lucky bee comes more often.
+    var base = L.eventWeights(null).bee;
+    near(L.eventWeights(st).bee, base + C.RARE.beeWeightEach, 1e-9, 'one Honeyheart attracts the bee');
+    grow(st, 2);
+    var crumbs = st.crumbs;
+    assert(L.harvest(st, 2).crumbs === 1 && st.crumbs === crumbs + 1 && st.discovered.nutrients.crumbs, 'a Comet Crumb inside');
+    // Mandrake: an Heirloom Seed at 4+ stars, none below.
+    var md = st.pots[3].plant;
+    md.qSum = 0.85; md.qTime = 1; grow(st, 3);
+    var h = st.heirlooms, rm = L.harvest(st, 3);
+    assert(rm.heirlooms === 1 && st.heirlooms === h + 1 && st.stats.heirloomsEarned >= 1, '1 Heirloom Seed at 4 stars');
+    md = st.pots[3].plant;
+    md.qSum = 0.5; md.qTime = 1; md.growth = 1;
+    assert(L.harvest(st, 3).heirlooms === 0 && st.heirlooms === h + 1, 'nothing from a grumpy 3-star Mandrake');
+    // A New Season keeps rare seeds in the bag and turns living rare plants back into seeds.
+    var kept = L.rareSeedsKept(st);
+    assert(kept.mandrake === 2 && kept.lily === 1 && kept.agave === 1 && kept.honey === 1, 'bag + living plants: ' + JSON.stringify(kept));
+    st.seasonEarned = L.prestigeGoal(st);
+    var n = L.prestige(st).state;
+    assert(n.seeds.mandrake === 2 && n.seeds.lily === 1 && n.seeds.agave === 1 && n.seeds.honey === 1, 'rare seeds come along');
+    // A waiting offer survives saving; junk does not.
+    var sv = S.newGame();
+    L.offerRare(sv, 'honey');
+    var back = Save.parse(Save.serialize(sv));
+    assert(back.events.rare && back.events.rare.species === 'honey' && back.events.rare.price === C.SPECIES_BY_ID.honey.price, 'offer saved');
+    sv.events.rare = { species: 'mint', price: 1, t: 50 };
+    assert(Save.parse(Save.serialize(sv)).events.rare === null, 'only rare plants can be on offer');
+    sv.events.rare = { species: 'lily', price: 1, t: 50 };
+    assert(Save.parse(Save.serialize(sv)).events.rare.price === C.SPECIES_BY_ID.lily.price, 'the price comes from the config, not the save');
   });
 
   test('the income estimate on the barn sign follows plant value and growth speed', function () {

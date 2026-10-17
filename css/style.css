@@ -141,6 +141,7 @@ button.chip { cursor: pointer; font: 800 0.85rem var(--font); }
 .chip.bee { background: #a67a12; }
 .chip.merchant { background: #7a4a9a; }
 .chip.pest { background: #5a2a7a; }
+.chip.rare { background: #8a6418; border-color: var(--gold); }
 
 /* The barn sign hangs in the top right corner, above the side panel and just as wide.
    ui.js adds .with-sign to the HUD only when both rows of buttons fit beside it. */
@@ -370,6 +371,8 @@ dd .bar.mini { width: 8rem; display: inline-block; vertical-align: middle; }
 .item.locked { background: #efe3c8; }
 .item.muted { opacity: 0.75; }
 .item.merchant { background: #f3e6ff; border-color: #7a4a9a; }
+.item.rare { background: #fff6d6; border-color: var(--gold-dark); }
+.item.rare h4 .ic { color: var(--gold-dark); }
 .item.done { background: #eef7dc; }
 .item.shine { animation: shine 0.9s; }
 .section { font-size: 0.95rem; margin-top: 0.3rem; }
@@ -401,6 +404,8 @@ dd .bar.mini { width: 8rem; display: inline-block; vertical-align: middle; }
 .settings h3 { font-size: 0.95rem; color: var(--wood); border-bottom: 0.12rem solid rgba(58, 42, 34, 0.15); padding-bottom: 0.2rem; }
 .set-row { display: flex; align-items: center; gap: 0.7rem; min-height: 2.6rem; cursor: pointer; }
 .set-row.wrap { flex-wrap: wrap; padding: 0.2rem 0; }
+.confirm-skip { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.7rem; font-size: 0.9rem; cursor: pointer; }
+.confirm-skip input { width: 1.1rem; height: 1.1rem; accent-color: var(--leaf-dark); flex: none; }
 .set-row small { display: block; color: var(--ink-soft); font-size: 0.8rem; font-weight: 400; }
 .set-row output { width: 3rem; text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; }
 .set-row input[type="range"] { width: 9rem; accent-color: var(--leaf-dark); }
@@ -677,6 +682,7 @@ html.dark {
 /* Light tints become dark tints. */
 .dark .item.locked { background: #352920; }
 .dark .item.merchant { background: #3a2c47; }
+.dark .item.rare { background: #3d3120; }
 .dark .item.done, .dark .paint.active { background: #2c3a25; }
 .dark .season-card, .dark .toast.gold { background: #3d3120; }
 .dark .tut-card { background: #2f2a1b; }

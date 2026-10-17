@@ -118,7 +118,7 @@
   // ==================================================================
   L.species = function (p) { return C.SPECIES_BY_ID[p.species]; };
 
-  L.primeWindow = function (sp) { return Math.max(C.GROWTH.primeMin, sp.growTime * C.GROWTH.primeFactor); };
+  L.primeWindow = function (sp) { return Math.max(C.GROWTH.primeMin, sp.growTime * (sp.primeFactor || C.GROWTH.primeFactor)); };
 
   L.stage = function (p) {
     if (p.dead) return 'dead';
@@ -178,6 +178,8 @@
     m *= 1 + L.prestigeBonus(state) + L.eff(state, 'hGrow');
     m *= L.isNight(state) ? sp.nightMult : sp.dayMult;
     if (state.events.bee > 0) m *= C.EVENTS.beeGrowth;
+    if (state.events.heat > 0 && sp.heatMult) m *= sp.heatMult;    // Firecracker Pepper, Ember Agave
+    if (state.events.rain > 0 && sp.rainMult) m *= sp.rainMult;    // Rainbow Lily
     if (p.pest > 0) m *= C.GROWTH.pestSlow;
     return m / sp.growTime;
   };
@@ -186,7 +188,7 @@
     var sp = L.species(p);
     var cut = Math.max(C.NUTRIENT.gelMinDrain, 1 - C.NUTRIENT.gelDrainCut * L.nutStrength(state, p, 'gel'));
     return C.WATER.baseDrain * sp.thirst * cut * (1 - L.eff(state, 'mulch')) *
-      (state.events.heat > 0 ? C.EVENTS.heatDrain : 1);
+      (state.events.heat > 0 && !sp.heatProof ? C.EVENTS.heatDrain : 1);
   };
 
   /** Seconds until mature at the current rate, Infinity when stalled. */
@@ -214,8 +216,11 @@
 
   /** What the plant would sell for once mature, at its current quality. */
   L.projectedValue = function (state, p) {
-    var v = L.species(p).value * (C.QUALITY.priceBase + C.QUALITY.priceSpan * L.quality(p)) * L.sellMultiplier(state);
+    var sp = L.species(p), q = L.quality(p);
+    var v = sp.value * (C.QUALITY.priceBase + C.QUALITY.priceSpan * q) * L.sellMultiplier(state);
     if (p.golden) v *= C.QUALITY.goldenMult;
+    if (sp.prize && L.stars(q) >= 5) v *= sp.prize;                 // a prize Plumpkin
+    if (sp.heatPay && state.events.heat > 0) v *= sp.heatPay;       // Ember Agave in a heatwave
     return Math.max(1, Math.round(v));
   };
   L.sellValue = function (state, p) {
@@ -335,7 +340,7 @@
     if (!(state.seeds[id] > 0)) return fail('noseed');
     state.seeds[id]--;
     pot.plant = S.newPlant(id);
-    pot.memo = id;
+    pot.memo = C.SPECIES_BY_ID[id].rare ? null : id;
     pot.idle = 0;
     state.discovered.species[id] = true;
     state.stats.planted++;
@@ -376,10 +381,15 @@
     var q = L.quality(p), stars = L.stars(q), golden = !!p.golden;
     var sun = 0;
     if (golden) { sun += 1; state.stats.goldens++; }
-    if (sp.sunshine && stars >= 4) sun += sp.sunshine;
+    if (sp.sunshine && stars >= (sp.sunStars || 4)) sun += sp.sunshine;
+    // Rare plant rewards: Comet Crumbs (Honeyheart), Heirloom Seeds (Mandrake).
+    var crumbs = sp.crumbs || 0;
+    var heir = sp.heirlooms && stars >= (sp.heirStars || 4) ? sp.heirlooms : 0;
 
     earn(state, coins);
     state.sunshine += sun;
+    if (crumbs) { state.crumbs += crumbs; state.discovered.nutrients.crumbs = true; }
+    if (heir) { state.heirlooms += heir; state.stats.heirloomsEarned += heir; }
     var st = state.stats;
     st.harvests++;
     st.bySpecies[sp.id] = (st.bySpecies[sp.id] || 0) + 1;
@@ -394,13 +404,14 @@
       p.growth = sp.regrow; p.ripeAge = 0; p.golden = false;
       p.qSum = 0; p.qTime = 0; p.qBonus = 0;
     } else {
-      pot.plant = null; pot.memo = sp.id; pot.idle = 0;
+      // The squirrel replants from memory, but never spends a rare seed on its own.
+      pot.plant = null; pot.memo = sp.rare ? null : sp.id; pot.idle = 0;
     }
     emit('harvest', {
       slot: i, species: sp.id, coins: coins, stars: stars, golden: golden, sunshine: sun,
-      auto: !!(opts && opts.auto), regrow: !!regrow
+      crumbs: crumbs, heirlooms: heir, auto: !!(opts && opts.auto), regrow: !!regrow
     });
-    return { ok: true, coins: coins, stars: stars, golden: golden, sunshine: sun };
+    return { ok: true, coins: coins, stars: stars, golden: golden, sunshine: sun, crumbs: crumbs, heirlooms: heir };
   };
 
   L.harvestAll = function (state) {
@@ -464,6 +475,7 @@
 
   L.buySeed = function (state, id, qty) {
     if (!C.SPECIES_BY_ID[id]) return fail('unknown');
+    if (C.SPECIES_BY_ID[id].rare) return fail('rare');        // only from event offers
     if (!state.unlocked[id]) return fail('locked');
     qty = Math.floor(qty);
     if (!(qty >= 1)) return fail('qty');
@@ -493,6 +505,7 @@
   L.unlockSpecies = function (state, id) {
     var sp = C.SPECIES_BY_ID[id];
     if (!sp) return fail('unknown');
+    if (sp.rare) return fail('rare');
     if (state.unlocked[id]) return fail('owned');
     if (state.coins < sp.unlock) return fail('funds');
     if (sp.unlockSun && state.sunshine < sp.unlockSun) return fail('sunshine');
@@ -722,13 +735,14 @@
   };
 
   // ---- Travelling merchant -------------------------------------------
+  // Both only look at shop plants; rare plants never count as "unlocked".
   function bestUnlocked(state) {
     var best = C.SPECIES[0];
-    for (var i = 0; i < C.SPECIES.length; i++) if (state.unlocked[C.SPECIES[i].id]) best = C.SPECIES[i];
+    for (var i = 0; i < C.SPECIES.length; i++) if (!C.SPECIES[i].rare && state.unlocked[C.SPECIES[i].id]) best = C.SPECIES[i];
     return best;
   }
   function nextLocked(state) {
-    for (var i = 0; i < C.SPECIES.length; i++) if (!state.unlocked[C.SPECIES[i].id]) return C.SPECIES[i];
+    for (var i = 0; i < C.SPECIES.length; i++) if (!C.SPECIES[i].rare && !state.unlocked[C.SPECIES[i].id]) return C.SPECIES[i];
     return null;
   }
 
@@ -777,13 +791,59 @@
     return { ok: true };
   };
 
+  // ---- Rare seed offers (event-only plants) ---------------------------
+  /** The rare plant that belongs to an event kind, or null. */
+  L.rareFor = function (kind) {
+    for (var i = 0; i < C.SPECIES.length; i++) if (C.SPECIES[i].rare === kind) return C.SPECIES[i];
+    return null;
+  };
+  /** Rare offers only start once the barn is far enough along to afford them. */
+  L.rareOpen = function (state) { return !!state.unlocked[C.RARE.needs]; };
+
+  /** Puts a rare seed on offer for a while (replaces any older offer). */
+  L.offerRare = function (state, id) {
+    var sp = C.SPECIES_BY_ID[id];
+    if (!sp || !sp.rare) return fail('unknown');
+    state.events.rare = { species: id, price: sp.price, t: C.RARE.offerTime };
+    emit('rareOffer', { species: id, price: sp.price });
+    return { ok: true };
+  };
+
+  /** When an event starts: sometimes its rare plant is offered too. */
+  function maybeRareOffer(state, kind) {
+    var sp = L.rareFor(kind);
+    if (!sp || !L.rareOpen(state) || state.events.rare) return;   // no extra dice roll before that (keeps tests stable)
+    if (L.rng() < C.RARE.chance) L.offerRare(state, sp.id);
+  }
+
+  L.buyRare = function (state) {
+    var o = state.events.rare;
+    if (!o) return fail('gone');
+    if (state.coins < o.price) return fail('funds');
+    state.coins -= o.price;
+    state.seeds[o.species] = (state.seeds[o.species] || 0) + 1;
+    state.events.rare = null;
+    emit('buy', { kind: 'rare', species: o.species, cost: o.price });
+    return { ok: true, species: o.species };
+  };
+
+  /** Growing Honeyhearts that attract the lucky bee (capped). */
+  function honeyhearts(state) {
+    var n = 0;
+    for (var i = 0; i < state.pots.length; i++) {
+      var p = state.pots[i].plant;
+      if (p && !p.dead && C.SPECIES_BY_ID[p.species].rare === 'bee') n++;
+    }
+    return Math.min(n, C.RARE.maxHoneyhearts);
+  }
+
   // ==================================================================
   // Orders
   // ==================================================================
   L.makeOrder = function (state) {
     var pool = [], i;
     for (i = 0; i < C.SPECIES.length; i++) {
-      if (state.unlocked[C.SPECIES[i].id]) for (var w = 0; w <= i; w++) pool.push(C.SPECIES[i]);
+      if (!C.SPECIES[i].rare && state.unlocked[C.SPECIES[i].id]) for (var w = 0; w <= i; w++) pool.push(C.SPECIES[i]);
     }
     var sp = pool[Math.floor(L.rng() * pool.length)] || C.SPECIES[0];
     var qty = sp.growTime > 300 ? 1 + Math.floor(L.rng() * 2) : 2 + Math.floor(L.rng() * 4);
@@ -841,8 +901,15 @@
   // ==================================================================
   // Random events
   // ==================================================================
-  L.pickEvent = function () {
-    var w = C.EVENTS.weights, total = 0, k;
+  /** Event weights right now: a growing Honeyheart makes the lucky bee more likely. */
+  L.eventWeights = function (state) {
+    var w = {}, k;
+    for (k in C.EVENTS.weights) w[k] = C.EVENTS.weights[k];
+    if (state) w.bee += C.RARE.beeWeightEach * honeyhearts(state);
+    return w;
+  };
+  L.pickEvent = function (state) {
+    var w = L.eventWeights(state), total = 0, k;
     for (k in w) total += w[k];
     var r = L.rng() * total;
     for (k in w) { r -= w[k]; if (r <= 0) return k; }
@@ -874,6 +941,7 @@
     else return null;
     state.stats.eventsSeen++;
     emit('eventStart', { kind: kind });
+    maybeRareOffer(state, kind);
     return kind;
   };
 
@@ -890,11 +958,15 @@
         }
       }
     }
+    if (ev.rare) {
+      ev.rare.t -= dt;
+      if (ev.rare.t <= 0) { emit('rareGone', { species: ev.rare.species }); ev.rare = null; }
+    }
     if (!env.events || env.offline) return;
     ev.next -= dt;
     if (ev.next <= 0) {
       ev.next = rand(C.EVENTS.minGap, C.EVENTS.maxGap);
-      L.triggerEvent(state, L.pickEvent());
+      L.triggerEvent(state, L.pickEvent(state));
     }
   }
 
@@ -1138,7 +1210,25 @@
       LOYAL_HELPERS[i].forEach(function (h) { next.upgrades[h] = Math.max(1, next.upgrades[h] || 0); });
     }
     next.tank = L.tankCapacity(next);
+    // Rare plants cannot be bought again, so they come along: seeds in the bag
+    // stay, and a living rare plant goes back into the bag as a seed.
+    var rare = L.rareSeedsKept(state);
+    for (id in rare) next.seeds[id] = rare[id];
     return { ok: true, state: next, heirlooms: gain };
+  };
+
+  /** Rare seeds a New Season would carry over: the bag plus one per living rare plant. */
+  L.rareSeedsKept = function (state) {
+    var out = {}, i, id;
+    for (i = 0; i < C.SPECIES.length; i++) {
+      id = C.SPECIES[i].id;
+      if (C.SPECIES[i].rare && state.seeds[id] > 0) out[id] = state.seeds[id];
+    }
+    for (i = 0; i < state.pots.length; i++) {
+      var p = state.pots[i].plant;
+      if (p && !p.dead && C.SPECIES_BY_ID[p.species].rare) out[p.species] = (out[p.species] || 0) + 1;
+    }
+    return out;
   };
 
   L.offlineLimits = function (state) {

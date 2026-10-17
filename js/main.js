@@ -170,11 +170,19 @@
           return r.ok;
         }
         if (pot.plant.dead) return L.clear(st, slot).ok;
-        if (viaDrag) return false;
+        if (viaDrag) return false;     // sweeping the shovel only clears withered plants
+        if (!G.settings.confirmDig) return L.clear(st, slot).ok;
         UI.confirm({
-          title: 'Dig up this plant?', yes: 'Dig it up', danger: true,
+          title: 'Dig up this plant?', yes: 'Dig it up', danger: true, dontAsk: 'Don\'t ask me again',
           text: 'The ' + L.species(pot.plant).name + ' is still alive. Digging it up throws it away and you get nothing for it.'
-        }, function () { L.clear(st, slot); });
+        }, function (dontAsk) {
+          if (dontAsk) {
+            G.settings.confirmDig = false;
+            G.applySettings();
+            UI.toast('No more questions. You can turn the warning back on in Settings.', { time: 3500 });
+          }
+          L.clear(st, slot);
+        });
         return true;
 
       case 'shoo':
@@ -208,6 +216,11 @@
   G.buyNutrient = function (id, qty) { return bought(L.buyNutrient(G.state, id, qty), { funds: NO_FUNDS, stock: 'The shop does not have that many left.' }); };
   G.restock = function () { return bought(L.restock(G.state), { funds: NO_FUNDS, full: 'The shelves are already full.' }); };
   G.buyOffer = function () { return bought(L.buyOffer(G.state), { funds: NO_FUNDS, gone: 'The merchant has left.', sold: 'Already bought.' }); };
+  G.buyRare = function () {
+    var ok = bought(L.buyRare(G.state), { funds: NO_FUNDS, gone: 'That offer has gone.' });
+    if (ok) { G.saveNow(false); UI.refreshModals(); }
+    return ok;
+  };
   G.buyCrumbs = function () { return bought(L.buyCrumbs(G.state), { sunshine: 'Not enough Sunshine.' }); };
   G.buyStyle = function (id) { return bought(L.buyPotStyle(G.state, id), { funds: NO_FUNDS, sunshine: 'Not enough Sunshine.' }); };
   G.buyCatSkin = function (id) { return bought(L.buyCatSkin(G.state, id), { funds: NO_FUNDS }); };
@@ -276,12 +289,22 @@
       R.textAtSlot(e.slot, '+' + UI.fmt(e.coins), e.golden ? GOLD : CREAM, e.golden);
       Sound.play('harvest'); Sound.play('coin');
       if (e.auto) R.hop();
+      if (sp.sound) { Sound.play(sp.sound); R.wiggle(e.slot); }
       if (e.golden) {
         Sound.play('golden'); R.shake(5);
         UI.toast('A golden ' + sp.name + '! Triple price and +1 Sunshine.', { kind: 'gold', icon: 'star', title: 'Golden harvest' });
       } else if (e.sunshine > 0) {
         UI.toast('A fine ' + sp.name + ' bloom: +' + e.sunshine + ' Sunshine.', { kind: 'gold', icon: 'sun' });
       }
+      // Rewards from rare plants.
+      if (e.heirlooms > 0) {
+        R.shake(3);
+        UI.toast('The ' + sp.name + ' grumbles, then hands over ' + e.heirlooms + (e.heirlooms === 1 ? ' Heirloom Seed.' : ' Heirloom Seeds.'),
+          { kind: 'gold', icon: 'acorn', title: 'Heirloom harvest' });
+      } else if (sp.heirlooms && !e.auto) {
+        UI.toast('That ' + sp.name + ' was not happy enough to share an Heirloom Seed. It needs 4 stars or better.', { icon: 'acorn', time: 4000 });
+      }
+      if (e.crumbs > 0) UI.toast('A Comet Crumb was tucked inside the ' + sp.name + '.', { kind: 'good', icon: 'star', time: 2600 });
       if (G.selected === e.slot && !e.regrow && window.innerWidth < 900) G.selected = -1;
       UI.tutorialEvent('harvest');
     },
@@ -324,6 +347,18 @@
       var shop = e.kind === 'merchant';
       if (shop) UI.refreshModals();
     },
+    rareOffer: function (e) {
+      var sp = C.SPECIES_BY_ID[e.species];
+      Sound.play('rare'); R.shake(2);
+      UI.toast(sp.offer + ' ' + UI.fmt(e.price) + ' coins, and it only waits ' + Math.round(C.RARE.offerTime / 60 * 10) / 10 + ' minutes.',
+        { kind: 'gold', icon: 'star', title: 'Rare seed: ' + sp.name, time: 15000,
+          action: { label: 'Buy', fn: function () { G.buyRare(); } } });
+      UI.refreshModals();
+    },
+    rareGone: function (e) {
+      UI.toast('The ' + C.SPECIES_BY_ID[e.species].name + ' offer has moved on.', { time: 2600 });
+      UI.refreshModals();
+    },
     achievement: function (e) {
       var a = C.ACHIEVEMENTS_BY_ID[e.id];
       Sound.play('achievement'); R.shake(3);
@@ -358,7 +393,13 @@
       Sound.play('unlock');
       UI.toast(C.SPECIES_BY_ID[e.id].name + ' seeds are now for sale.', { kind: 'good', icon: 'seed', title: 'New species unlocked' });
     },
-    buy: function () { Sound.play('coin'); },
+    buy: function (e) {
+      Sound.play('coin');
+      if (e.kind !== 'rare') return;
+      Sound.play('unlock');
+      UI.toast('A ' + C.SPECIES_BY_ID[e.species].name + ' seed is in your seed bag. Plant it with the seed tool (5).',
+        { kind: 'gold', icon: 'seed', title: 'Rare seed bought' });
+    },
     seasonReady: function () {
       Sound.play('achievement');
       UI.toast('This season\'s goal is reached. Open Seasons (N) whenever you are ready to start a New Season and collect Heirloom Seeds.',
@@ -759,7 +800,8 @@
     UI.refreshModals();
   };
   G.debug.seasonGoal = function () { G.state.seasonEarned = Math.max(G.state.seasonEarned, L.prestigeGoal(G.state)); };
-  G.debug.unlockAll = function () { C.SPECIES.forEach(function (sp) { G.state.unlocked[sp.id] = true; }); UI.refreshModals(); };
+  G.debug.unlockAll = function () { C.SPECIES.forEach(function (sp) { if (!sp.rare) G.state.unlocked[sp.id] = true; }); UI.refreshModals(); };
+  G.debug.rare = function (id) { L.offerRare(G.state, id); };
   G.debug.skip = function (seconds) {
     var steps = Math.round(seconds / 0.5);
     for (var i = 0; i < steps; i++) { L.tick(G.state, 0.5, env); if (L.queue.length > 60) handleEvents(L.drain().slice(0, 5)); }

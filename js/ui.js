@@ -286,14 +286,19 @@
   };
   UI.closeAll = function () { while (modals.length) { var m = modals[modals.length - 1]; m.onClose = null; m.close(); } };
 
-  /** opts: { title, text, yes, no, danger } */
+  /**
+   * opts: { title, text, yes, no, danger, dontAsk }. With dontAsk (a label) the
+   * dialog shows a "don't ask again" box, and onYes receives whether it was ticked.
+   */
   UI.confirm = function (opts, onYes) {
+    var skip = opts.dontAsk ? el('input', { type: 'checkbox', id: 'confirm-skip' }) : null;
     var m = openModal({
       id: 'confirm', title: opts.title || 'Are you sure?', blocking: true, cls: 'narrow',
-      body: el('div', {}, [el('p', { text: opts.text })]),
+      body: el('div', {}, [el('p', { text: opts.text }),
+        skip ? el('label', { class: 'confirm-skip', for: 'confirm-skip' }, [skip, el('span', { text: opts.dontAsk })]) : null]),
       footer: [
         btn(opts.no || 'Cancel', function () { m.close(); }),
-        btn(opts.yes || 'Yes', function () { m.close(); onYes(); }, { cls: opts.danger ? 'danger' : 'primary' })
+        btn(opts.yes || 'Yes', function () { m.close(); onYes(skip ? skip.checked : false); }, { cls: opts.danger ? 'danger' : 'primary' })
       ]
     });
     return m;
@@ -436,7 +441,7 @@
     var ev = st.events, pests = 0, i;
     for (i = 0; i < st.pots.length; i++) { var p = st.pots[i].plant; if (p && !p.dead && p.pest > 0) pests++; }
     var active = ['heat', 'rain', 'bee', 'merchant'].filter(function (k) { return ev[k] > 0; });
-    var key = active.join(',') + '|' + pests;
+    var key = active.join(',') + '|' + pests + '|' + (ev.rare ? ev.rare.species : '');
     if (key !== chipsKey) {
       chipsKey = key;
       refs.chips.innerHTML = '';
@@ -453,8 +458,16 @@
         refs.chips.appendChild(el('div', { class: 'chip pest', tip: 'A pest is nibbling a plant. Select it and shoo the bug, or use Bug-Off Tonic.' },
           [icon('bug'), el('span', { text: pests + (pests === 1 ? ' pest' : ' pests') })]));
       }
+      refs.rareTime = null;
+      if (ev.rare) {
+        refs.rareTime = el('span', { class: 'num small' });
+        refs.chips.appendChild(el('button', { type: 'button', class: 'chip rare', tip: 'A rare seed is on offer for a short while. Click to see it in the shop.',
+          onclick: function () { click(); UI.openShop('special'); } },
+          [icon('star'), el('span', { text: C.SPECIES_BY_ID[ev.rare.species].name }), refs.rareTime]));
+      }
     }
     for (var k in refs.chipTimes) setText(refs.chipTimes[k], UI.time(ev[k]));
+    if (refs.rareTime && ev.rare) setText(refs.rareTime, UI.time(ev.rare.t));
   }
 
   // ==================================================================
@@ -868,8 +881,42 @@
     return card;
   }
 
+  /** Where each rare plant turns up, for the shop, almanac and tooltips. */
+  var RARE_WHERE = { rain: 'on rainy days', heat: 'during heatwaves', bee: 'when the lucky bee visits', merchant: 'from the travelling merchant' };
+  UI.rareWhere = function (sp) { return RARE_WHERE[sp.rare]; };
+
+  function rareOfferCard(list, m) {
+    var st = G.state, o = st.events.rare;
+    if (o) {
+      var sp = C.SPECIES_BY_ID[o.species], left = el('span', { class: 'num small' }), buy = el('button', { type: 'button', class: 'btn buy primary' });
+      buy.addEventListener('click', function () { if (!buy.disabled) G.buyRare(); });
+      list.appendChild(el('div', { class: 'item rare' }, [
+        plantPic(sp.id, 64, 1),
+        el('div', { class: 'grow' }, [el('h4', {}, ['Rare seed: ' + sp.name, ' ', icon('star')]), el('p', { text: sp.offer }),
+          el('p', { class: 'meta', text: sp.quirk }), el('p', { class: 'meta' }, ['Gone in ', left])]),
+        el('div', { class: 'item-side' }, [seedPic(sp.id, 40), buy])
+      ]));
+      m.updaters.push(function () {
+        var cur = st.events.rare;
+        setText(left, cur ? UI.time(cur.t) : '0:00');
+        setHtml(buy, 'Buy ' + price(o.price));
+        buy.disabled = !cur || st.coins < o.price;
+      });
+      return;
+    }
+    var names = C.SPECIES.filter(function (s) { return s.rare; }).map(function (s) {
+      return (st.discovered.species[s.id] ? s.name : 'a mystery plant') + ' ' + RARE_WHERE[s.rare];
+    });
+    list.appendChild(el('div', { class: 'item muted' }, [icon('star', 'big'),
+      el('div', { class: 'grow' }, [el('h4', { text: 'No rare seeds right now' }),
+        el('p', { text: L.rareOpen(st)
+          ? 'Now and then someone offers a rare seed when an event starts: ' + names.join(', ') + '. Keep an eye on the toasts.'
+          : 'Rare seeds start turning up during events once you have unlocked the ' + C.SPECIES_BY_ID[C.RARE.needs].name + '.' })])]));
+  }
+
   function specialTab(list, m) {
     var st = G.state, ev = st.events;
+    rareOfferCard(list, m);
     // Travelling merchant.
     if (ev.merchant > 0 && ev.offer) {
       var o = ev.offer, left = el('span', { class: 'num small' }), buy = el('button', { type: 'button', class: 'btn buy primary' });
@@ -955,7 +1002,7 @@
       m.updaters = [];
       body.appendChild(tabs([
         { id: 'seeds', name: 'Seeds', icon: 'seed' }, { id: 'nutrients', name: 'Nutrients', icon: 'drop' },
-        { id: 'special', name: 'Special', icon: 'star', badge: st.events.merchant > 0 ? '!' : null }
+        { id: 'special', name: 'Special', icon: 'star', badge: st.events.merchant > 0 || st.events.rare ? '!' : null }
       ], shopState.tab, function (id) { shopState.tab = id; m.render(); }));
       var list = el('div', { class: 'items' });
       if (shopState.tab !== 'special') {
@@ -966,7 +1013,7 @@
         });
         body.appendChild(qrow);
       }
-      if (shopState.tab === 'seeds') C.SPECIES.forEach(function (sp) { list.appendChild(seedCard(sp, m)); });
+      if (shopState.tab === 'seeds') C.SPECIES.forEach(function (sp) { if (!sp.rare) list.appendChild(seedCard(sp, m)); });
       else if (shopState.tab === 'nutrients') {
         var rb = el('button', { type: 'button', class: 'btn small' }), rnote = el('span', { class: 'hint' });
         rb.addEventListener('click', function () { if (!rb.disabled) G.restock(); });
@@ -1034,11 +1081,13 @@
       Sound.play('error');
       return;
     }
+    var rare = L.rareSeedsKept(st), rareNames = Object.keys(rare).map(function (id) { return rare[id] + ' × ' + C.SPECIES_BY_ID[id].name; });
     UI.confirm({
       title: 'Start Season ' + (st.prestige + 2) + '?', yes: 'Start the New Season', danger: true,
       text: 'You collect ' + fmt(L.heirloomGain(st)) + ' Heirloom Seeds, and everything grows and sells ' +
         pctText(C.PRESTIGE.bonusPerLevel) + ' better for good. Your coins, pots, normal upgrades, unlocked species, seeds, nutrients and orders start over. ' +
-        'You keep awards, the almanac, Sunshine and its upgrades, Heirloom upgrades, cat coats, pot paints and your barn name.'
+        'You keep awards, the almanac, Sunshine and its upgrades, Heirloom upgrades, cat coats, pot paints and your barn name.' +
+        (rareNames.length ? ' Your rare plants come along as seeds: ' + rareNames.join(', ') + '.' : '')
     }, function () { G.prestige(); });
   }
 
@@ -1316,8 +1365,9 @@
     if (!known) {
       return el('div', { class: 'entry unknown' }, [
         plantPic(sp.id, 88, 1, { silhouette: '#6b5544' }),
-        el('div', { class: 'grow' }, [el('h4', { text: '???' }),
-          el('p', { text: st.unlocked[sp.id] ? 'Plant one to add it to your almanac.' : 'Still a mystery. Unlock it in the shop and plant one to learn more.' })])
+        el('div', { class: 'grow' }, [el('h4', {}, ['???', ' ', sp.rare ? icon('star') : null]),
+          el('p', { text: sp.rare ? 'A rare plant. Its seed is only ever offered ' + RARE_WHERE[sp.rare] + '.'
+            : (st.unlocked[sp.id] ? 'Plant one to add it to your almanac.' : 'Still a mystery. Unlock it in the shop and plant one to learn more.') })])
       ]);
     }
     var stages = el('div', { class: 'stages' });
@@ -1331,10 +1381,11 @@
     return el('div', { class: 'entry' }, [
       plantPic(sp.id, 88, 1),
       el('div', { class: 'grow' }, [
-        el('h4', {}, [sp.name, ' ', el('em', { text: sp.latin })]),
+        el('h4', {}, [sp.name, ' ', sp.rare ? icon('star') : null, ' ', el('em', { text: sp.latin })]),
         el('p', { text: sp.blurb }),
         el('p', { class: 'meta', text: sp.quirk }),
         el('dl', {}, [
+          sp.rare ? el('dt', { text: 'Found' }) : null, sp.rare ? el('dd', { text: 'Only ' + RARE_WHERE[sp.rare] + ', for ' + fmt(sp.price) + ' coins' }) : null,
           el('dt', { text: 'Grow time' }), el('dd', { text: UI.time(sp.growTime) + (sp.harvests > 1 ? ' (' + sp.harvests + ' harvests)' : '') }),
           el('dt', { text: 'Thirst' }), el('dd', { text: thirstWord(sp) }),
           el('dt', { text: 'Comfy water' }), el('dd', {}, [zone]),
@@ -1485,6 +1536,7 @@
       el('h3', { text: 'Game' }),
       speedRow,
       toggleRow('Random events', 'events', 'Pests, heatwaves, rain, the lucky bee and the merchant.'),
+      toggleRow('Ask before digging up a plant', 'confirmDig', 'A warning before the shovel throws away a living plant.'),
       el('h3', { text: 'Display & accessibility' }),
       themeRow,
       toggleRow('Particles', 'particles', 'Splashes, sparkles and coin pops.'),
@@ -1574,6 +1626,9 @@
         el('p', { text: 'Nitro-Bloom speeds up growth, Gulp-Gel slows water loss, Glamour Jam raises quality, Bug-Off heals and keeps pests away. A dose lasts about a minute and a half. Every species loves one nutrient and gets 50% more out of it. Nitro + Gel and Jam + Tonic form bonus synergies.' }),
         el('h3', { text: 'Events and helpers' }),
         el('p', { text: 'Heatwaves, rain, pests, a lucky bee and a travelling merchant keep things lively (you can switch events off in Settings). Later, the sprinkler, the Harvest Hedgehog and the Seed Squirrel take over the routine work. While you are away the barn keeps going at a slower pace, and nothing can die.' }),
+        el('h3', { text: 'Rare plants' }),
+        el('p', { text: 'Four plants are never sold in the shop. Once you have unlocked the ' + C.SPECIES_BY_ID[C.RARE.needs].name +
+          ', someone sometimes offers one when an event starts: a Rainbow Lily on rainy days, an Ember Agave in a heatwave, a Honeyheart when the lucky bee visits, and a Wanderer\'s Mandrake from the merchant. They are pricey, but each gives several harvests and a special reward, and they come with you into a New Season.' }),
         el('h3', { text: 'Seasons' }),
         el('p', { text: 'Earn a season\'s coin goal and you can start a New Season (Seasons, key N). Your barn starts over, but you collect Heirloom Seeds for upgrades that never reset, and every past season makes plants grow and sell 10% better. Some normal upgrades also get higher level caps each season.' }),
         el('h3', { text: 'The Wild Patch' }),
@@ -2120,6 +2175,9 @@
       b('Rain', function () { G.debug.event('rain'); }, '', 'play'),
       b('Lucky bee', function () { G.debug.event('bee'); }, '', 'play'),
       b('Merchant', function () { G.debug.event('merchant'); }, '', 'play')]);
+    section('Rare seed offers', C.SPECIES.filter(function (sp) { return sp.rare; }).map(function (sp) {
+      return b(sp.name, function () { G.debug.rare(sp.id); }, '', 'play');
+    }));
     section('Danger zone', [b('Reset the whole save', function () { A.resetSave(); }, 'danger')]);
   }
   UI.setFps = function (fps) { var f = $('fps'); f.hidden = !G.settings.fps; if (G.settings.fps) f.textContent = fps + ' fps'; };
