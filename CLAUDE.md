@@ -21,7 +21,7 @@ The full original brief is in `docs/ORIGINAL_BRIEF.md`. Read it before any large
 ## How the user wants to work
 
 - **Ask before creating or doing anything new.** Propose the change first and wait for a yes. Small tweaks the user explicitly asked for can go straight in.
-- **No terminal commands.** The user has no Node or Homebrew and rejected shell use. Use the file tools and the built-in browser only. Do not call Bash at all, not even as a no-op (it slipped five times on 12 and 14 October and had to be confessed).
+- **Terminal: the user runs commands, Claude does not.** Since 17 October 2026 the user has Homebrew and git and pushes the game to GitHub (`Damba017/claudie-made-a-game`, GitHub Pages) from their own terminal. GitLab was tried that day and dropped as too confusing. Give commands as copyable `bash` blocks (one per block) with a plain explanation. Claude itself still uses only the file tools and the built-in browser: do not call Bash unless the user explicitly asks (it slipped five times on 12 and 14 October and had to be confessed). Node was not installed as of 12 October, so tests run in `tests/tests.html`.
 - Keep replies short and plain. The user is not a professional developer.
 - Update `README.md` when a change makes it wrong (feature list, upgrade count, controls, balance table).
 - The user plans to publish on GitHub. Do not invent their handle, a licence or badges.
