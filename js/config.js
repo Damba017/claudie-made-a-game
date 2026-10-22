@@ -121,8 +121,9 @@
 
     // ---- Rare plants (seeds only from events) -------------------------
     // Each rare species names its event; when that event starts there is a
-    // `chance` that someone offers one seed, for `offerTime` seconds.
-    // About once an hour per plant with events on.
+    // `chance` that someone offers one seed, for `offerTime` seconds. When two
+    // plants share an event, the offer picks one of them at random.
+    // About once an hour per event with events on.
     RARE: {
       needs: 'orchid',      // offers start once this species is unlocked
       chance: 0.15,
@@ -312,10 +313,37 @@
       likes: ['tonic', 'jam'], dayMult: 1, nightMult: 1, harvests: 1,
       colors: { leaf: '#5aa7a0', leaf2: '#3a8580', accent: '#9fe8ff', seed: '#c8e8ff' }
     },
+    {
+      id: 'lantern', name: 'Firefly Lantern', latin: 'Physalis luciferae',
+      blurb: 'Grows little paper lanterns, and every one has a firefly inside who refuses to pay rent.',
+      quirk: 'Fills its lanterns again after harvest: three harvests from one seed. Grows 30% faster at night, when the fireflies wake up.',
+      growTime: 1100, thirst: 1.0, water: [40, 85], value: 24000, seedCost: 12000, unlock: 8000000,
+      likes: ['gel'], dayMult: 0.9, nightMult: 1.3, harvests: 3, regrow: 0.5,
+      colors: { leaf: '#5fae5a', leaf2: '#3f8a48', accent: '#ff9a3c', seed: '#e8b04a' }
+    },
+    {
+      id: 'bonsai', name: 'Grandpa Bonsai', latin: 'Juniperus patientia',
+      blurb: 'Three hundred years old and still not finished. It has seen things. Mostly other bonsai.',
+      quirk: 'Very slow, but it blossoms again after harvest: three harvests from one seed. It waits a long time before it goes past its prime.',
+      growTime: 2000, thirst: 0.6, water: [30, 65], value: 110000, seedCost: 45000,
+      unlock: 30000000, unlockSun: 8, primeFactor: 2.5,
+      likes: ['tonic', 'jam'], dayMult: 1, nightMult: 1, harvests: 3, regrow: 0.55,
+      colors: { leaf: '#5a9a52', leaf2: '#3d7a40', accent: '#ffb3c8', seed: '#8a6a4a' }
+    },
+    {
+      id: 'firebird', name: 'Firebird of Paradise', latin: 'Strelitzia phoenicia',
+      blurb: 'A flower that is fairly sure it is a bird. It preens, it struts, and once it tried to fly south for the winter.',
+      quirk: 'The finest plant in the shop. Grows 50% faster in a heatwave, and a fine bloom (4 stars or better) gives 4 Sunshine.',
+      growTime: 2400, thirst: 1.1, water: [40, 80], value: 500000, seedCost: 180000,
+      unlock: 120000000, unlockSun: 15, sunshine: 4, heatMult: 1.5,
+      likes: ['nitro', 'jam'], dayMult: 1.1, nightMult: 0.9, harvests: 1,
+      colors: { leaf: '#4f9a6a', leaf2: '#357a50', accent: '#ff6a2a', seed: '#d94a2a' }
+    },
 
     // ---- Rare plants: never in the shop. During their event (`rare`) someone
-    // sometimes offers one seed for `price` coins (see RARE). Perennials with
-    // a special reward per harvest. Keep them at the end of this list.
+    // sometimes offers one seed for `price` coins (see RARE). The first four are
+    // perennials with a special reward per harvest; the last three give one big
+    // harvest and help the whole barn while they grow. Keep them at the end of this list.
     {
       id: 'lily', name: 'Rainbow Lily', latin: 'Lilium arcuscaeli', rare: 'rain', price: 40000, seedCost: 40000,
       offer: 'A soggy frog hops in with a Rainbow Lily bulb that the rain washed up.',
@@ -339,7 +367,7 @@
       offer: 'The lucky bee drops off a Honeyheart seed, with compliments from the queen.',
       blurb: 'Heart-shaped leaves and little golden bells that drip real honey. Bees adore it.',
       quirk: 'Rare. 4 harvests, each with a Comet Crumb, and while it grows the lucky bee drops by more often.',
-      growTime: 720, thirst: 1.0, water: [35, 85], value: 21000, crumbs: 1,
+      growTime: 720, thirst: 1.0, water: [35, 85], value: 21000, crumbs: 1, beeLure: true,
       likes: ['jam'], dayMult: 1, nightMult: 1, harvests: 4, regrow: 0.5,
       colors: { leaf: '#7cc35a', leaf2: '#5a9f45', accent: '#ffc23c', seed: '#e0a82a' }
     },
@@ -351,6 +379,33 @@
       growTime: 1200, thirst: 0.8, water: [30, 75], value: 70000, heirlooms: 1, heirStars: 4, sound: 'shriek',
       likes: ['tonic'], dayMult: 0.9, nightMult: 1.2, harvests: 3, regrow: 0.6,
       colors: { leaf: '#5f9e4a', leaf2: '#447a38', accent: '#b98ad9', seed: '#d9b98a' }
+    },
+    {
+      id: 'pitcher', name: 'Gobblepot Pitcher', latin: 'Nepenthes nomnomia', rare: 'pest', price: 80000, seedCost: 80000,
+      offer: 'A very nervous beetle offers you a Gobblepot Pitcher seed. It seems keen to be rid of it.',
+      blurb: 'A carnivorous pitcher with a lid like a little hat. It hums a tune that bugs find impossible to resist.',
+      quirk: 'Rare. While it grows, every pest that flies into the barn goes straight into its pitcher instead of your plants, and each snack makes it grow 10% further.',
+      growTime: 1500, thirst: 1.3, water: [50, 95], value: 67000, eatsPests: true, snack: 0.1,
+      likes: ['tonic'], dayMult: 1, nightMult: 1, harvests: 1,
+      colors: { leaf: '#6aae4a', leaf2: '#4a8a3a', accent: '#c2457a', seed: '#7a4a5a' }
+    },
+    {
+      id: 'cloud', name: 'Puffcloud Nimbus', latin: 'Nimbus pottii', rare: 'rain', price: 150000, seedCost: 150000,
+      offer: 'A duck in a raincoat waddles in with a Puffcloud Nimbus seed. A tiny cloud is still stuck to it.',
+      blurb: 'A fluffy plant that grows its own little rain cloud. On sunny days it looks slightly smug.',
+      quirk: 'Rare. Its little cloud keeps it and the pots on either side of it watered, all day long, up to the middle of their comfy zone.',
+      growTime: 1800, thirst: 1.5, water: [45, 95], value: 126000, drizzle: 3,
+      likes: ['gel'], dayMult: 1, nightMult: 1, harvests: 1,
+      colors: { leaf: '#7cc3a0', leaf2: '#5aa380', accent: '#eef6ff', seed: '#b9d8f0' }
+    },
+    {
+      id: 'bamboo', name: 'Fortune Bamboo', latin: 'Dracaena fortunata', rare: 'bee', price: 220000, seedCost: 220000,
+      offer: 'The lucky bee drags in a Fortune Bamboo cane tied with a red ribbon. Luck is catching, it buzzes.',
+      blurb: 'Green canes, a red ribbon and a gold coin that nobody remembers tying on. Luck rubs off on everything near it.',
+      quirk: 'Rare. While it is in your barn, every plant has an extra 8% chance to ripen golden (triple price). A second one does not add more.',
+      growTime: 2400, thirst: 0.9, water: [35, 80], value: 185000, luck: 0.08,
+      likes: ['nitro'], dayMult: 1, nightMult: 1, harvests: 1,
+      colors: { leaf: '#6cbf5a', leaf2: '#4a9a45', accent: '#e8393e', seed: '#c9a23f' }
     }
   ];
 
@@ -500,7 +555,7 @@
       fmt: function (v) { return '+' + pct(v) + ' order rewards'; } },
 
     // ---- Combat (boss fights; unlock with the first New Season) ----
-    { id: 'sharp', cat: 'combat', name: 'Shear Sharpness', max: 4, capPerPrestige: 3, maxCap: 25, capBonus: 'hSharp',
+    { id: 'sharp', cat: 'combat', name: 'Shear Sharpness', max: 4, capPerPrestige: 3, maxCap: 28, capBonus: 'hSharp',
       cost: 200, mult: 1.85, base: 0, per: 1, requires: { prestige: 1 },
       desc: 'Sharper pruning shears. Your power (damage per snip) must beat a boss\'s armour, or your snips just bounce off.',
       fmt: function (v) { return shearText(v) + ' power per snip'; } },
@@ -555,8 +610,8 @@
     { id: 'hPots', cat: 'heirloom', currency: 'heirlooms', name: 'Inherited Shelves', max: 4, cost: 5, mult: 2, base: 0, per: 2,
       desc: 'Some shelves stay up between seasons.',
       fmt: function (v) { return v ? 'Start with ' + (CONFIG.START.slots + v) + ' pots' : 'Start with ' + CONFIG.START.slots + ' pots'; } },
-    { id: 'hSpecies', cat: 'heirloom', currency: 'heirlooms', name: 'Seed Library', max: 6, cost: 4, mult: 2,
-      values: [1, 3, 5, 7, 8, 10, 11],   // keep everything up to Grumpy Prickle, Berry, Glimmercap, Orchid, Lotus, Rose
+    { id: 'hSpecies', cat: 'heirloom', currency: 'heirlooms', name: 'Seed Library', max: 7, cost: 4, mult: 2,
+      values: [1, 3, 5, 7, 8, 10, 11, 14],   // keep everything up to Grumpy Prickle, Berry, Glimmercap, Orchid, Lotus, Rose, Firebird
       desc: 'Keeps species unlocked between seasons, starting with the cheapest.',
       fmt: function (v) { return v > 1 ? 'Keep everything up to ' + CONFIG.SPECIES[v - 1].name : 'Only Pepperwink'; } },
     { id: 'hHelpers', cat: 'heirloom', currency: 'heirlooms', name: 'Loyal Helpers', max: 3, cost: 8, mult: 2.5, base: 0, per: 1,
@@ -644,6 +699,37 @@
         { kind: 'shield', name: 'Void Bloom', dur: 3, text: 'A void shield! Hold your snips.' },
         { kind: 'pods', name: 'Shadow Seeds', n: 5, life: 2.8, look: 'seed', effect: 'heal', amount: 0.02, text: 'Pop the shadow seeds!' },
         { kind: 'armorUp', name: 'Total Eclipse', dur: 4, mult: 1.4, text: 'Total eclipse! Its armour hardens.' }
+      ] } },
+    // Late bosses, one per season from 8 to 10. Each needs 2.5x the health of the
+    // one before it (seasonHpGrowth per season), so the hp ordering test holds.
+    { id: 'gourdon', name: 'King Gourdon', title: 'The Hollow Crown', prestige: 8, sharp: 21,
+      hp: 420000000, armor: 165000, heirlooms: 90, color: '#f08a2c', moveEvery: [6, 9],
+      blurb: 'A Plumpkin nobody harvested. It carved its own face, crowned itself with vines and declared the compost heap a kingdom.',
+      moves: [
+        { kind: 'armorUp', name: 'Thick Rind', dur: 4, mult: 1.5, text: 'Its rind hardens! Only extra-sharp shears get through.' },
+        { kind: 'pods', name: 'Seed Spit', n: 4, life: 2.8, look: 'pip', effect: 'time', amount: 2, text: 'Swat the seeds before they hit you!' },
+        { kind: 'grab', name: 'Vine Lasso', dur: 5, text: 'A vine has lassoed your sprayer!' }
+      ] },
+    { id: 'duchess', name: 'The Glass Duchess', title: 'Thorn of the Crystal Court', prestige: 9, sharp: 23,
+      hp: 1100000000, armor: 420000, heirlooms: 125, color: '#9fe8ff', moveEvery: [6, 9],
+      blurb: 'A Crystalbloom Rose that heard one unkind word too many. Now she is all edges, and terribly polite about it.',
+      moves: [
+        { kind: 'shield', name: 'Glass Dome', dur: 3, text: 'A glass dome! Hold your snips, or you lose your combo.' },
+        { kind: 'pods', name: 'Shard Storm', n: 5, life: 2.6, look: 'shard', effect: 'heal', amount: 0.02, text: 'Swat the shards before they fly back and mend her!' },
+        { kind: 'snap', name: 'Thorn Lash', dur: 1.8, amount: 1, text: 'Her thorns lash out! Every snip costs a second.' }
+      ] },
+    { id: 'monarch', name: 'The Mandrake Monarch', title: 'The Scream Beneath the Barn', prestige: 10, sharp: 25,
+      hp: 2850000000, armor: 1080000, heirlooms: 175, color: '#b98ad9', moveEvery: [6, 8],
+      blurb: 'Every Wanderer\'s Mandrake you ever pulled up went home and told its grandmother. This is the grandmother.',
+      moves: [
+        { kind: 'weak', name: 'Royal Shriek', dur: 6, mult: 0.5, text: 'A shriek rattles your shears: half damage! Bug-Off Tonic calms it down.' },
+        { kind: 'pods', name: 'Root Snares', n: 4, life: 3, look: 'root', effect: 'time', amount: 2, text: 'Swat the roots before they trip you up!' },
+        { kind: 'armorUp', name: 'Bark Skin', dur: 4, mult: 1.4, text: 'Its skin turns to bark!' }
+      ],
+      phase2: { at: 0.5, speed: 0.65, text: 'The Mandrake Monarch pulls itself all the way out of the ground!', moves: [
+        { kind: 'shield', name: 'Burrow', dur: 3, text: 'It ducks back into the soil! Wait for it to pop up again.' },
+        { kind: 'pods', name: 'Screaming Seedlings', n: 5, life: 2.8, look: 'sprout', effect: 'heal', amount: 0.02, text: 'Pop the little seedlings before they feed it!' },
+        { kind: 'snap', name: 'Royal Tantrum', dur: 2, amount: 1, text: 'A royal tantrum! Every snip costs a second.' }
       ] } }
   ];
 
@@ -701,7 +787,7 @@
     { id: 'botanist', name: 'Botanist', desc: 'Harvest every shop plant at least once.',
       goal: CONFIG.SPECIES.filter(function (sp) { return !sp.rare; }).length,
       value: function (s) { return CONFIG.SPECIES.filter(function (sp) { return !sp.rare && s.stats.bySpecies[sp.id] > 0; }).length; } },
-    { id: 'rarities', name: 'Rare Collector', desc: 'Harvest all four rare plants from the events.',
+    { id: 'rarities', name: 'Rare Collector', desc: 'Harvest every rare plant from the events.',
       goal: CONFIG.SPECIES.filter(function (sp) { return sp.rare; }).length,
       value: function (s) { return CONFIG.SPECIES.filter(function (sp) { return sp.rare && s.stats.bySpecies[sp.id] > 0; }).length; } },
     { id: 'pots10', name: 'Room to Grow', desc: 'Own 10 pots.', goal: 10, value: function (s) { return s.pots.length; } },
@@ -725,7 +811,10 @@
     { id: 'boss2', name: 'Frond Fighter', desc: 'Defeat The Fernkraken.', goal: 1, value: function (s) { return s.trophies.fernkraken ? 1 : 0; } },
     { id: 'boss3', name: 'Knight Errant', desc: 'Defeat Sir Snapdragon.', goal: 1, value: function (s) { return s.trophies.snapdragon ? 1 : 0; } },
     { id: 'boss4', name: 'Mold Breaker', desc: 'Defeat Mother Mold.', goal: 1, value: function (s) { return s.trophies.mold ? 1 : 0; } },
-    { id: 'boss5', name: 'Eclipse Chaser', desc: 'Defeat The Eclipse Lotus.', goal: 1, value: function (s) { return s.trophies.eclipse ? 1 : 0; } }
+    { id: 'boss5', name: 'Eclipse Chaser', desc: 'Defeat The Eclipse Lotus.', goal: 1, value: function (s) { return s.trophies.eclipse ? 1 : 0; } },
+    { id: 'boss6', name: 'Royal Pain', desc: 'Defeat King Gourdon.', goal: 1, value: function (s) { return s.trophies.gourdon ? 1 : 0; } },
+    { id: 'boss7', name: 'Shatterproof', desc: 'Defeat The Glass Duchess.', goal: 1, value: function (s) { return s.trophies.duchess ? 1 : 0; } },
+    { id: 'boss8', name: 'Down to Earth', desc: 'Defeat The Mandrake Monarch.', goal: 1, value: function (s) { return s.trophies.monarch ? 1 : 0; } }
   ];
 
   // ------------------------------------------------------------------

@@ -320,6 +320,13 @@
       R.textAtSlot(e.slot, e.by === 'ladybugs' ? 'Ladybugs!' : 'Bug gone!', '#c9f7c0');
     },
     eventStart: function (e) {
+      if (e.kind === 'pest' && e.eaten) {
+        R.burst('pop', e.slot); R.wiggle(e.slot); Sound.play('squish');
+        R.textAtSlot(e.slot, 'Crunch!', '#c9f7c0');
+        UI.toast('A bug flew into the barn and straight into your Gobblepot Pitcher. It grew a little from the snack.',
+          { kind: 'good', icon: 'bug', time: 3500 });
+        return;
+      }
       if (e.kind === 'pest') {
         var p = G.state.pots[e.slot].plant;
         Sound.play('pest');
@@ -589,14 +596,15 @@
     UI.showFight(G.fight);
     Sound.play('roar'); R.shake(4);
     var b = K.boss(id), left = r.fight.hp / r.fight.maxHp;
+    var names = b.moves.map(function (m) { return m.name; });
     UI.fightBanner(b.name, (left < 0.995 ? 'Still wounded from last time: ' + Math.max(1, Math.round(left * 100)) + '% health left. ' : '') +
-      'Click it to snip! Watch out for ' + b.moves[0].name + ' and ' + b.moves[1].name + '.', 'warn');
+      'Click it to snip! Watch out for ' + names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] + '.', 'warn');
     return true;
   };
   G.spray = function () {
     if (!G.fight) return;
     var r = K.spray(G.state, G.fight);
-    if (!r.ok && r.reason === 'grabbed') complain('grabbed', 'A frond is holding your sprayer! Wait until it lets go.');
+    if (!r.ok && r.reason === 'grabbed') complain('grabbed', 'Something is holding your sprayer! Wait until it lets go.');
     else if (!r.ok) Sound.play('error');
   };
   G.useItem = function (id) {

@@ -829,6 +829,13 @@
         if (p.golden && p.growth >= 1 && Math.random() < 0.5) {
           spawn({ kind: 'spark', x: pc.x + rand(-26, 26) * pc.s, y: pc.rimY - rand(0.1, 1.1) * h * pc.s, vy: -14, life: 0.9, size: 3.6 * pc.s, color: PAL.gold });
         }
+        // A Puffcloud Nimbus drizzles on itself and the pots next to it (see L.tick).
+        if (L.species(p).drizzle && Math.random() < 0.7) {
+          var j = i + Math.floor(Math.random() * 3) - 1, pj = lay.pots[j], q = state.pots[j] && state.pots[j].plant;
+          if (pj && q && !q.dead) {
+            spawn({ kind: 'drop', x: pj.x + rand(-14, 14) * pj.s, y: pj.rimY - (Art.plantHeight(q) + 6) * pj.s, vy: 70, g: 400, life: 0.5, size: 2 * pj.s, color: 'rgba(122,192,240,0.85)' });
+          }
+        }
       }
       if (state.events.rain > 0) {
         for (i = 0; i < 2; i++) spawn({ kind: 'drop', x: rand(lay.areaL, lay.areaR), y: 16, vy: 260, g: 500, life: 1.4, size: 2.2, color: 'rgba(170,215,255,0.8)' });
@@ -861,11 +868,13 @@
   /** Golden trophies of beaten bosses on the main windowsill. */
   function drawTrophies(c, state) {
     if (!state.trophies) return;
-    var win = lay.win, s = clamp(win.w / 120, 0.55, 1.1), n = 0;
-    for (var i = 0; i < C.BOSSES.length; i++) {
+    var win = lay.win, s = clamp(win.w / 120, 0.55, 1.1), n = 0, total = 0, i;
+    for (i = 0; i < C.BOSSES.length; i++) if (state.trophies[C.BOSSES[i].id]) total++;
+    var step = Math.min(17 * s, (win.w - 20 * s) / Math.max(1, total - 1));     // squeeze them together on a narrow sill
+    for (i = 0; i < C.BOSSES.length; i++) {
       var b = C.BOSSES[i];
       if (!state.trophies[b.id]) continue;
-      Art.trophy(c, win.x + 10 * s + n * 17 * s, win.y + win.h - 1, s, b.color);
+      Art.trophy(c, win.x + 10 * s + n * step, win.y + win.h - 1, s, b.color);
       n++;
     }
   }
@@ -926,8 +935,11 @@
   // Boss fights: the Wild Patch greenhouse
   // ==================================================================
   var arena = null;
-  var BOSS_GLOW = { thornzilla: '#b8ff8a', fernkraken: '#7af0c0', snapdragon: '#ff9f7a', mold: '#58e6d9', eclipse: '#ffd27a' };
-  var POD_COLORS = { spine: '#fff3c4', bud: '#ff8fb1', spore: '#c99ae8', star: '#ffd24a', seed: '#ff5a7a' };
+  var BOSS_GLOW = { thornzilla: '#b8ff8a', fernkraken: '#7af0c0', snapdragon: '#ff9f7a', mold: '#58e6d9', eclipse: '#ffd27a',
+    gourdon: '#ffb347', duchess: '#bff4ff', monarch: '#d9a6ff' };
+  var BOSS_GLOW2 = { eclipse: '#ff5a7a', monarch: '#ff7a5a' };     // in the second phase
+  var POD_COLORS = { spine: '#fff3c4', bud: '#ff8fb1', spore: '#c99ae8', star: '#ffd24a', seed: '#ff5a7a',
+    pip: '#f6e7c4', shard: '#bff4ff', root: '#c9a06a', sprout: '#9be07a' };
 
   function arenaLayout() {
     var top = R.insets.top, bottom = R.h - R.insets.bottom;
@@ -1070,6 +1082,29 @@
         c.fillStyle = '#ffd24a'; Art.star(c, 0, 0, 18, 5, 0.45);
         c.fillStyle = '#fff8cf'; Art.star(c, 0, 0, 7, 5, 0.45);
         break;
+      case 'pip':             // a pumpkin seed
+        c.rotate(0.6); c.fillStyle = '#f6e7c4'; Art.ellipse(c, 0, 0, 10, 16);
+        c.strokeStyle = '#c9a46a'; c.lineWidth = 2; c.beginPath(); c.ellipse(0, 0, 10, 16, 0, 0, PI * 2); c.stroke();
+        c.fillStyle = '#e8d3a0'; Art.ellipse(c, 0, 3, 5, 9);
+        break;
+      case 'shard':           // a sliver of glass
+        c.rotate(0.4); c.fillStyle = '#bff4ff';
+        c.beginPath(); c.moveTo(0, -20); c.lineTo(9, 4); c.lineTo(2, 18); c.lineTo(-8, 2); c.closePath(); c.fill();
+        c.strokeStyle = '#ffffff'; c.lineWidth = 2; c.stroke();
+        c.fillStyle = 'rgba(255,255,255,0.7)'; c.beginPath(); c.moveTo(0, -14); c.lineTo(3, 2); c.lineTo(-2, 0); c.closePath(); c.fill();
+        break;
+      case 'root':            // a grabby little root
+        c.strokeStyle = '#a8835a'; c.lineWidth = 6; c.lineCap = 'round';
+        c.beginPath(); c.arc(0, 0, 11, 0.3, PI * 1.7); c.stroke();
+        c.lineWidth = 3; Art.line(c, 11, -4, 18, -10); Art.line(c, -6, 9, -10, 17);
+        c.fillStyle = '#d9b98a'; Art.circle(c, 0, 0, 5);
+        break;
+      case 'sprout':          // a screaming seedling
+        c.fillStyle = '#e2c49a'; Art.ellipse(c, 0, 4, 12, 13);
+        c.fillStyle = '#7bcf6a'; Art.leaf(c, 0, -8, -PI / 2 - 0.6, 14, 5); Art.leaf(c, 0, -8, -PI / 2 + 0.6, 14, 5);
+        c.fillStyle = '#3a2a22'; Art.circle(c, -4, 1, 1.8); Art.circle(c, 4, 1, 1.8);
+        c.fillStyle = '#7a2a3a'; Art.ellipse(c, 0, 8, 3, 4);
+        break;
       default:
         c.fillStyle = '#1a0f2a'; Art.ellipse(c, 0, 0, 10, 15, 0.4);
         c.strokeStyle = '#ff5a7a'; c.lineWidth = 2;
@@ -1093,7 +1128,7 @@
     if (shake > 0.2) c.translate(rand(-shake, shake), rand(-shake, shake));
     drawGreenhouse(c, a, R.t);
 
-    var glowCol = f.id === 'eclipse' && f.phase === 2 ? '#ff5a7a' : BOSS_GLOW[f.id];
+    var glowCol = f.phase === 2 && BOSS_GLOW2[f.id] ? BOSS_GLOW2[f.id] : BOSS_GLOW[f.id];
     glows.push({ x: a.cx, y: a.groundY - 130 * a.s, r: 230 * a.s, color: glowCol, a: 0.16 });
     var shrink = view.shrink === undefined ? 1 : Math.max(0.12, view.shrink);
     var recoil = opt.reducedMotion ? 0 : (view.hurt || 0) * Math.sin(R.t * 70) * 4;

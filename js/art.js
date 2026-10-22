@@ -118,7 +118,8 @@
   // ==================================================================
   // Approximate full-grown height in units, used to place indicators.
   var HEIGHT = { mint: 78, fern: 82, cactus: 88, sunflower: 146, berry: 70, pumpkin: 62, shroom: 62, orchid: 122,
-    pepper: 92, lotus: 84, crystal: 112, lily: 108, agave: 100, honey: 86, mandrake: 64 };
+    pepper: 92, lotus: 84, crystal: 112, lantern: 92, bonsai: 84, firebird: 126,
+    lily: 108, agave: 100, honey: 86, mandrake: 64, pitcher: 60, cloud: 100, bamboo: 96 };
 
   Art.plantHeight = function (p) {
     if (p.dead) return 30;
@@ -584,6 +585,169 @@
     if (P.glow && !P.dead) P.glow(tip.x, tip.y - 4, 42 * bk, P.pal.accent, (0.08 + 0.3 * P.night) * bk);
   };
 
+  /** One papery lantern hanging from (x, y): green, then gold, then glowing orange with a firefly inside. */
+  function paperLantern(P, x, y, r, ripe) {
+    var c = P.ctx;
+    var body = P.mature ? P.pal.accent : (ripe > 0.6 ? '#e8c24a' : '#9ccf6a');
+    var rib = P.mature ? '#d9662a' : (ripe > 0.6 ? '#c9a032' : '#6fa84a');
+    c.save(); c.translate(x, y); c.rotate(P.sway * 3 + P.droop * 0.35);
+    c.strokeStyle = tint(P, P.pal.leaf2); c.lineWidth = 1.2; line(c, 0, -3, 0, 0);
+    c.fillStyle = tint(P, body);
+    c.beginPath(); c.moveTo(0, 0);
+    c.bezierCurveTo(r * 1.15, r * 0.35, r * 0.95, r * 1.6, 0, r * 2.1);
+    c.bezierCurveTo(-r * 0.95, r * 1.6, -r * 1.15, r * 0.35, 0, 0); c.fill();
+    c.strokeStyle = tint(P, rib); c.lineWidth = 0.9;
+    c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(r * 0.55, r * 1.05, 0, r * 2.1); c.stroke();
+    c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(-r * 0.55, r * 1.05, 0, r * 2.1); c.stroke();
+    line(c, 0, 0, 0, r * 2.1);
+    if (P.mature && !P.silhouette && !P.dead) {
+      var fl = 0.5 + 0.5 * Math.sin(P.t * 5 + x);
+      c.fillStyle = 'rgba(244,255,154,' + (0.35 + 0.55 * fl * (0.4 + 0.6 * P.night)).toFixed(2) + ')';
+      circle(c, Math.sin(P.t * 1.3 + x) * r * 0.25, r * 1.2, r * 0.28);
+    }
+    c.restore();
+  }
+
+  SPECIES_ART.lantern = function (P) {
+    var c = P.ctx, k = P.k, i, j, tips = [];
+    var xs = [0, -9, 10], hs = [1, 0.8, 0.88], leans = [0.04, -0.4, 0.38], ns = 1 + Math.floor(k * 2.6);
+    for (j = ns - 1; j >= 0; j--) {
+      var pt = stem(P, xs[j] * 0.5, (16 + 62 * k) * hs[j], leans[j], 2, tint(P, P.pal.leaf2));
+      var nl = 1 + Math.floor(k * 3);
+      for (i = 0; i < nl; i++) {
+        var t = 0.28 + i * 0.2, q = pt(t), side = (i + j) % 2 ? 1 : -1, s = (5 + 6 * k) * (1 - t * 0.3);
+        c.fillStyle = tint(P, i % 2 ? P.pal.leaf : P.pal.leaf2);
+        leaf(c, q.x, q.y, leafAng(P, side, 0.3), s * 1.7, s * 0.8);
+      }
+      tips[j] = pt;
+    }
+    if (k <= 0.5) return;
+    // Lanterns hang near the stem tips; a ripe plant shows one more for every harvest it has left.
+    var lk = (k - 0.5) / 0.5, r = 3 + 4.5 * lk;
+    var n = P.mature ? 2 + (P.fruit || 1) : 2 + Math.floor(lk * 2);
+    for (i = 0; i < n; i++) {
+      var q2 = tips[i % ns](0.96 - Math.floor(i / ns) * 0.3);
+      var lx = q2.x + (i % 2 ? 3 : -3), ly = q2.y + 3;
+      paperLantern(P, lx, ly, r, lk);
+      if (P.mature && P.glow && !P.dead) P.glow(lx, ly + r * 1.1, r * 4.5, P.pal.accent, 0.08 + 0.4 * P.night);
+    }
+  };
+
+  // Foliage pads of the bonsai: [trunk position, side, size], in the order they appear.
+  var BONSAI_PADS = [[1, 0, 1.05], [0.5, -1, 0.9], [0.72, 1, 0.8]];
+  var PAD_PUFFS = [[-0.9, 0.15, 0.7], [0.9, 0.15, 0.7], [-0.35, -0.3, 0.8], [0.4, -0.25, 0.75], [0, 0.2, 0.9]];
+
+  SPECIES_ART.bonsai = function (P) {
+    var c = P.ctx, k = P.k, i, j, m;
+    var H = 14 + 50 * k, lean = P.sway * 6;
+    // An S-shaped old trunk, thick at the base.
+    var b = [0, 0, -12 * k - 2, -H * 0.35, 12 * k + 2, -H * 0.7, lean, -H];
+    function trunk(t) {
+      var u = 1 - t, w0 = u * u * u, w1 = 3 * u * u * t, w2 = 3 * u * t * t, w3 = t * t * t;
+      return { x: w0 * b[0] + w1 * b[2] + w2 * b[4] + w3 * b[6], y: w0 * b[1] + w1 * b[3] + w2 * b[5] + w3 * b[7] };
+    }
+    var bark = tint(P, '#7a5a3a');
+    c.strokeStyle = bark; c.lineCap = 'round';
+    for (i = 0; i < 8; i++) {
+      var a = trunk(i / 8), e = trunk((i + 1) / 8);
+      c.lineWidth = (4 + 7 * k) * (1 - 0.55 * i / 8); line(c, a.x, a.y, e.x, e.y);
+    }
+    c.fillStyle = tint(P, P.pal.leaf2); ellipse(c, 0, 0, 9 + 6 * k, 2.6);      // a little moss
+    // Branches out to cloud-like foliage pads.
+    var np = k < 0.3 ? 1 : (k < 0.6 ? 2 : 3);
+    for (j = 0; j < np; j++) {
+      var pd = BONSAI_PADS[j], q = trunk(pd[0]), r = (5 + 9 * k) * pd[2];
+      var cx = q.x + pd[1] * (10 + 16 * k), cy = q.y - (pd[1] ? 2 : 6) + P.droop * 6;
+      if (pd[1]) { c.strokeStyle = bark; c.lineWidth = 2 + 2 * k; line(c, q.x, q.y, cx, cy + r * 0.3); }
+      c.fillStyle = tint(P, P.pal.leaf2); ellipse(c, cx, cy + r * 0.35, r * 1.5, r * 0.45);
+      for (m = 0; m < PAD_PUFFS.length; m++) {
+        c.fillStyle = tint(P, m % 2 ? P.pal.leaf2 : P.pal.leaf);
+        circle(c, cx + PAD_PUFFS[m][0] * r, cy + PAD_PUFFS[m][1] * r, PAD_PUFFS[m][2] * r);
+      }
+      // Pink blossoms when ripe (one more per harvest left), tiny buds just before.
+      var nb = P.mature ? 1 + (P.fruit || 1) : (k > 0.8 ? 2 : 0);
+      for (m = 0; m < nb; m++) {
+        var bx = cx + (rnd(P.seed + j * 7 + m * 3.1) - 0.5) * r * 2.2, by = cy - r * 0.2 + (rnd(P.seed + j * 5 + m * 4.3) - 0.5) * r * 0.9;
+        c.fillStyle = tint(P, P.pal.accent);
+        if (!P.mature) { circle(c, bx, by, 1.4); continue; }
+        for (var f = 0; f < 5; f++) circle(c, bx + Math.cos(f * 1.257) * 1.8, by + Math.sin(f * 1.257) * 1.8, 1.7);
+        c.fillStyle = tint(P, '#ffe27a'); circle(c, bx, by, 1.1);
+      }
+    }
+    // Grandpa himself: bushy eyebrows, a droopy moustache and a well-earned nap.
+    if (k > 0.35 && !P.silhouette) {
+      var fc = trunk(0.32), s = 0.6 + 0.6 * k;
+      c.strokeStyle = PAL.ink; c.lineWidth = 1.1; c.lineCap = 'round';
+      if (P.dead) {
+        line(c, fc.x - 3.6 * s, fc.y - 2 * s, fc.x - 1.6 * s, fc.y); line(c, fc.x - 1.6 * s, fc.y - 2 * s, fc.x - 3.6 * s, fc.y);
+        line(c, fc.x + 1.6 * s, fc.y - 2 * s, fc.x + 3.6 * s, fc.y); line(c, fc.x + 3.6 * s, fc.y - 2 * s, fc.x + 1.6 * s, fc.y);
+      } else {
+        c.beginPath(); c.arc(fc.x - 2.6 * s, fc.y - 1, 1.4 * s, 0.2, PI - 0.2); c.stroke();
+        c.beginPath(); c.arc(fc.x + 2.6 * s, fc.y - 1, 1.4 * s, 0.2, PI - 0.2); c.stroke();
+      }
+      c.fillStyle = '#f4efe6';
+      leaf(c, fc.x - 1.2 * s, fc.y - 3.6 * s, PI + 0.25, 4.5 * s, 1.5 * s); leaf(c, fc.x + 1.2 * s, fc.y - 3.6 * s, -0.25, 4.5 * s, 1.5 * s);
+      leaf(c, fc.x, fc.y + 2.4 * s, PI - 0.35, 6 * s, 1.9 * s); leaf(c, fc.x, fc.y + 2.4 * s, 0.35, 6 * s, 1.9 * s);
+    }
+  };
+
+  // The firebird's crest of flame feathers: [colour, length, angle].
+  var FIRE_CREST = [['#ffd24a', 24, -1.15], [null, 28, -1.45], ['#ff9a3c', 25, -1.75], [null, 20, -2.05]];
+
+  SPECIES_ART.firebird = function (P) {
+    var c = P.ctx, k = P.k, i, order = [];
+    // Big paddle leaves on long stalks, outer ones first.
+    var nl = 2 + Math.floor(k * 3.4);
+    for (i = 0; i < nl; i++) order.push((i / (nl - 1)) * 2 - 1);
+    order.sort(function (a, b) { return Math.abs(b) - Math.abs(a); });
+    for (i = 0; i < order.length; i++) {
+      var f = order[i], len = (12 + 26 * k) * (1 - Math.abs(f) * 0.2);
+      var ang = -PI / 2 + f * (0.75 + P.droop * 0.7) + P.sway * 1.5;
+      var ex = Math.cos(ang) * len, ey = Math.sin(ang) * len * (1 - P.droop * 0.3);
+      c.strokeStyle = tint(P, P.pal.leaf2); c.lineWidth = 1.8; c.lineCap = 'round';
+      line(c, f * 3, 0, ex, ey);
+      var pl = (7 + 11 * k) * (1 - Math.abs(f) * 0.1);
+      c.save(); c.translate(ex, ey); c.rotate(ang + P.droop * f * 0.6);
+      c.fillStyle = tint(P, i % 2 ? P.pal.leaf : P.pal.leaf2);
+      ellipse(c, pl * 0.9, 0, pl, pl * 0.34);
+      c.strokeStyle = tint(P, P.pal.leaf2); c.lineWidth = 0.8; line(c, 0, 0, pl * 1.8, 0);
+      c.restore();
+    }
+    if (k <= 0.4) return;
+    var fk = (k - 0.4) / 0.6, tip = stem(P, 2, 22 + 74 * fk, 0.07, 2.6, tint(P, P.pal.leaf2))(1);
+    var s = 0.6 + 0.8 * fk;
+    c.save(); c.translate(tip.x, tip.y); c.rotate(P.sway * 2 + P.droop * 0.9); c.scale(s, s);
+    if (P.mature) {
+      var fl = P.dead || P.silhouette ? 0 : Math.sin(P.t * 7) * 0.08;
+      for (i = 0; i < FIRE_CREST.length; i++) {
+        var fc = FIRE_CREST[i];
+        c.fillStyle = tint(P, fc[0] || P.pal.accent);
+        leaf(c, 4 + i * 3, -2, fc[2] + fl * (i % 2 ? 1 : -1), fc[1] * (1 + fl), 4.2);
+      }
+      c.fillStyle = tint(P, '#5a7ae8'); leaf(c, 12, -2, -0.55, 15, 2.6);     // the blue "tongue"
+    } else if (fk > 0.7) {
+      c.fillStyle = tint(P, P.pal.accent); leaf(c, 6, -2, -1.4, 2 + 8 * (fk - 0.7) / 0.3, 2.4);
+    }
+    // The bract: a green beak with a red edge. It is a bird, after all, so it has an eye.
+    c.fillStyle = tint(P, P.pal.leaf2);
+    c.beginPath(); c.moveTo(-6, 1); c.quadraticCurveTo(8, -6, 26, -1); c.quadraticCurveTo(10, 7, -6, 4); c.closePath(); c.fill();
+    c.strokeStyle = tint(P, '#a8326a'); c.lineWidth = 1.6;
+    c.beginPath(); c.moveTo(-6, 4); c.quadraticCurveTo(10, 7, 26, -1); c.stroke();
+    if (!P.silhouette && !P.dead && fk > 0.5) {
+      c.fillStyle = '#ffffff'; circle(c, 3, -0.5, 2.3);
+      c.fillStyle = PAL.ink; circle(c, 3.6, -0.5, 1.2);
+    }
+    c.restore();
+    if (P.mature && !P.dead && !P.silhouette) {        // embers drifting up
+      for (i = 0; i < 3; i++) {
+        var tw = (Math.sin(P.t * 6 + i * 2.1) + 1) / 2;
+        c.fillStyle = 'rgba(255,200,90,' + (0.3 + 0.6 * tw).toFixed(2) + ')';
+        star(c, tip.x + 6 + (i - 1) * 9, tip.y - 22 - tw * 10 - i * 3, 1.2 + tw * 2, 4, 0.35);
+      }
+    }
+    if (P.glow && P.mature && !P.dead) P.glow(tip.x + 6, tip.y - 14, 52, P.pal.accent, 0.12 + 0.3 * P.night);
+  };
+
   // ---- Rare plants ----------------------------------------------------
   var RAINBOW = ['#ff6b6b', '#ffa94d', '#ffd43b', '#69db7c', '#4dabf7', '#9775fa'];
 
@@ -723,6 +887,163 @@
       c.fillStyle = tint(P, P.pal.accent);
       for (i = 0; i < 3; i++) circle(c, tx + (i - 1) * 7, topY - 18 - (i === 1 ? 5 : 0), 2.6);
     }
+  };
+
+  /**
+   * A Gobblepot pitcher standing on (x, y): a speckled cup, a rim and a lid like a little hat.
+   * open 0..1 lifts the lid; eyes: 0 none, 1 sleepy, 2 wide awake.
+   */
+  function pitcherCup(P, x, y, w, h, tilt, body, open, eyes) {
+    var c = P.ctx;
+    c.save(); c.translate(x, y); c.rotate(tilt);
+    c.fillStyle = tint(P, body);
+    c.beginPath(); c.moveTo(-w * 0.34, -h);
+    c.bezierCurveTo(-w * 0.42, -h * 0.55, -w * 0.62, -h * 0.12, -w * 0.3, 0);
+    c.quadraticCurveTo(0, h * 0.1, w * 0.3, 0);
+    c.bezierCurveTo(w * 0.62, -h * 0.12, w * 0.42, -h * 0.55, w * 0.34, -h);
+    c.closePath(); c.fill();
+    c.fillStyle = tint(P, '#7a1a3a');
+    circle(c, -w * 0.16, -h * 0.32, w * 0.05); circle(c, w * 0.13, -h * 0.48, w * 0.04); circle(c, w * 0.2, -h * 0.2, w * 0.05);
+    c.fillStyle = tint(P, '#e0a83a'); ellipse(c, 0, -h, w * 0.4, w * 0.12);
+    c.fillStyle = P.silhouette || '#3a1020'; ellipse(c, 0, -h, w * 0.27, w * 0.07);
+    c.save(); c.translate(-w * 0.32, -h - w * 0.04); c.rotate(-0.2 - open * 0.75);     // the lid, hinged at the back
+    c.fillStyle = tint(P, P.pal.leaf2); ellipse(c, w * 0.34, -w * 0.05, w * 0.36, w * 0.12);
+    c.restore();
+    if (eyes && !P.silhouette) {
+      var ey = -h * 0.62, ex = w * 0.14, er = Math.max(0.9, w * 0.06);
+      c.strokeStyle = PAL.ink; c.lineWidth = 1.1; c.lineCap = 'round';
+      if (P.dead) {
+        line(c, -ex - er, ey - er, -ex + er, ey + er); line(c, -ex + er, ey - er, -ex - er, ey + er);
+        line(c, ex - er, ey - er, ex + er, ey + er); line(c, ex + er, ey - er, ex - er, ey + er);
+      } else if (eyes === 2) {       // wide awake, watching for bugs
+        var look = Math.sin(P.t * 1.3 + x) * er * 0.6;
+        c.fillStyle = '#ffffff'; circle(c, -ex, ey, er * 1.5); circle(c, ex, ey, er * 1.5);
+        c.fillStyle = PAL.ink; circle(c, -ex + look, ey, er * 0.8); circle(c, ex + look, ey, er * 0.8);
+      } else {
+        c.beginPath(); c.arc(-ex, ey, er, 0.2, PI - 0.2); c.stroke();
+        c.beginPath(); c.arc(ex, ey, er, 0.2, PI - 0.2); c.stroke();
+      }
+    }
+    c.restore();
+  }
+
+  SPECIES_ART.pitcher = function (P) {
+    var c = P.ctx, k = P.k, i, n = 4 + Math.floor(k * 3);
+    for (i = 0; i < n; i++) {                 // a low rosette of strap leaves
+      var f = (i / (n - 1)) * 2 - 1, len = (10 + 22 * k) * (1 - Math.abs(f) * 0.15);
+      c.fillStyle = tint(P, i % 2 ? P.pal.leaf : P.pal.leaf2);
+      leaf(c, 0, -1, -PI / 2 + f * (1.25 + P.droop * 0.3) + P.sway * 1.5, len, 3 + 2.5 * k);
+    }
+    var pk = clamp01((k - 0.2) / 0.8);
+    var body = P.mature ? P.pal.accent : (pk > 0.6 ? '#d98aa8' : '#9ccf6a');
+    if (k > 0.45) {                           // tendrils with little pitchers dangling from them
+      var sk = (k - 0.45) / 0.55;
+      for (i = -1; i <= 1; i += 2) {
+        var tx = i * (17 + 10 * sk), ty = -14 - 10 * sk + P.droop * 8;
+        c.strokeStyle = tint(P, P.pal.leaf2); c.lineWidth = 1.3;
+        c.beginPath(); c.moveTo(i * 5, -8); c.quadraticCurveTo(i * 14, -26 * sk - 10, tx, ty); c.stroke();
+        pitcherCup(P, tx, ty + 4 + 9 * sk, 5 + 6 * sk, 4 + 9 * sk, i * 0.12 + P.sway, body, 0.3, 0);
+      }
+    }
+    if (pk <= 0) return;
+    // The big one in front: the Gobblepot itself.
+    pitcherCup(P, 2 + P.sway * 10, 0, 6 + 22 * pk, 6 + 38 * pk, P.droop * 0.25, body,
+      P.mature ? 0.9 : 0.2 * pk, pk > 0.5 ? (P.mature ? 2 : 1) : 0);
+  };
+
+  SPECIES_ART.cloud = function (P) {
+    var c = P.ctx, k = P.k, i, j, tops = [];
+    var xs = [0, -10, 9], hs = [1, 0.72, 0.8], leans = [0.02, -0.35, 0.32], ns = 1 + Math.floor(k * 2.6);
+    for (j = ns - 1; j >= 0; j--) {
+      var pt = stem(P, xs[j] * 0.4, (12 + 46 * k) * hs[j], leans[j], 1.8, tint(P, P.pal.leaf2));
+      var nl = 1 + Math.floor(k * 2.5);
+      for (i = 0; i < nl; i++) {              // soft round leaves
+        var t = 0.35 + i * 0.22, q = pt(t), side = (i + j) % 2 ? 1 : -1, s = (4 + 4 * k) * (1 - t * 0.3);
+        c.fillStyle = tint(P, i % 2 ? P.pal.leaf : P.pal.leaf2);
+        ellipse(c, q.x + side * s, q.y - s * 0.3 + P.droop * s * 0.6, s * 1.2, s * 0.7, side * (0.35 + P.droop));
+      }
+      tops[j] = pt(1);
+    }
+    var pr = P.mature ? 5.5 : (k > 0.7 ? 3 : 0);
+    for (j = 0; j < ns && pr; j++) {          // cotton-ball puffs at the tips
+      var tp = tops[j];
+      c.fillStyle = tint(P, P.mature ? '#ffffff' : P.pal.leaf);
+      circle(c, tp.x - pr * 0.5, tp.y, pr * 0.8); circle(c, tp.x + pr * 0.5, tp.y, pr * 0.8); circle(c, tp.x, tp.y - pr * 0.45, pr);
+    }
+    if (k <= 0.25) return;
+    // Its very own little rain cloud, bobbing above it and drizzling.
+    var ck = (k - 0.25) / 0.75, cs = 5 + 10 * ck, bob = P.dead ? 0 : Math.sin(P.t * 1.6 + P.seed) * 2.5;
+    var cx = P.sway * 30, cy = -(12 + 46 * k) - 14 - cs * 0.75 + bob + (P.dead ? 10 : 0);
+    if (!P.silhouette && !P.dead) {
+      for (i = 0; i < 4; i++) {
+        var dk = (P.t * 1.4 + i * 0.27 + P.seed * 0.1) % 1;
+        var dy = cy + cs * 0.5 + dk * (-cy - cs * 0.5 - 8);
+        Art.droplet(c, cx + (i - 1.5) * cs * 0.45, dy, 1.3, true, rgba('#7ac0f0', (0.9 * (1 - dk)).toFixed(2)));
+      }
+    }
+    if (P.mature && !P.silhouette && !P.dead) {   // a tiny rainbow when it is ripe
+      c.lineWidth = 1.6;
+      for (i = 0; i < 3; i++) {
+        c.strokeStyle = rgba(RAINBOW[i * 2], 0.8);
+        c.beginPath(); c.arc(cx, cy + cs * 0.3, cs * (1.7 - i * 0.2), PI * 1.08, PI * 1.92); c.stroke();
+      }
+    }
+    c.fillStyle = tint(P, P.dead ? '#8a8a8a' : '#c9dcf0');
+    ellipse(c, cx, cy + cs * 0.35, cs * 1.45, cs * 0.42);
+    c.fillStyle = tint(P, P.dead ? '#a5a5a5' : P.pal.accent);
+    circle(c, cx - cs * 0.72, cy + cs * 0.08, cs * 0.58); circle(c, cx + cs * 0.75, cy + cs * 0.12, cs * 0.52); circle(c, cx, cy - cs * 0.15, cs * 0.8);
+    if (!P.silhouette && !P.dead && ck > 0.4) {    // a sleepy, contented face
+      c.strokeStyle = PAL.ink; c.lineWidth = 1; c.lineCap = 'round';
+      c.beginPath(); c.arc(cx - cs * 0.25, cy, cs * 0.1, 0.2, PI - 0.2); c.stroke();
+      c.beginPath(); c.arc(cx + cs * 0.25, cy, cs * 0.1, 0.2, PI - 0.2); c.stroke();
+      c.fillStyle = 'rgba(255,140,170,0.45)'; circle(c, cx - cs * 0.45, cy + cs * 0.18, cs * 0.1); circle(c, cx + cs * 0.45, cy + cs * 0.18, cs * 0.1);
+    }
+  };
+
+  // Fortune Bamboo canes, back to front: [x, height, lean, shows from growth k].
+  var BAMBOO_CANES = [[-7, 0.78, -0.1, 0.3], [9, 0.62, 0.12, 0.6], [1, 1, 0.02, 0]];
+
+  SPECIES_ART.bamboo = function (P) {
+    var c = P.ctx, k = P.k, i, j, y;
+    for (j = 0; j < BAMBOO_CANES.length; j++) {
+      var cn = BAMBOO_CANES[j];
+      if (k < cn[3]) continue;
+      var h = (14 + 72 * k) * cn[1], w = 4 + 1.6 * k;
+      var ang = cn[2] + P.sway * 1.2 + (cn[2] >= 0 ? 1 : -1) * P.droop * 0.35;
+      c.save(); c.translate(cn[0] * (0.6 + 0.4 * k), 0); c.rotate(ang);
+      c.fillStyle = tint(P, j % 2 ? P.pal.leaf2 : P.pal.leaf);
+      rr(c, -w / 2, -h, w, h + 2, w / 2); c.fill();
+      c.fillStyle = tint(P, '#3f7f3a');                 // the joints
+      for (y = -11; y > -h + 4; y -= 11) { rr(c, -w / 2 - 0.6, y - 1, w + 1.2, 2.2, 1); c.fill(); }
+      if (!P.silhouette) { c.fillStyle = 'rgba(255,255,255,0.22)'; c.fillRect(-w * 0.3, -h + 3, w * 0.22, h - 5); }
+      c.fillStyle = tint(P, P.pal.leaf);
+      var nl = 1 + Math.floor(k * 2.5);
+      for (i = 0; i < nl; i++) {
+        var side = i % 2 ? 1 : -1;
+        leaf(c, 0, -h + 3 + i * 5, -PI / 2 + side * (0.7 + i * 0.25 + P.droop * 0.8), 8 + 7 * k, 2.4 + k);
+      }
+      c.restore();
+    }
+    if (k > 0.3) {                            // a red ribbon with a lucky coin on a thread
+      var ry = -14 - 6 * k, sw = P.dead ? 0 : Math.sin(P.t * 2 + P.seed) * 0.25;
+      c.fillStyle = tint(P, P.pal.accent);
+      rr(c, -10, ry - 2, 20, 4, 2); c.fill();
+      ellipse(c, -4, ry - 3, 3.4, 2.2, -0.5); ellipse(c, 4, ry - 3, 3.4, 2.2, 0.5);
+      leaf(c, -1, ry, PI / 2 + 0.5, 7, 1.6); leaf(c, 1, ry, PI / 2 - 0.5, 7, 1.6);
+      c.save(); c.translate(0, ry + 1); c.rotate(sw);
+      c.strokeStyle = tint(P, '#a8326a'); c.lineWidth = 0.8; line(c, 0, 0, 0, 6);
+      c.fillStyle = tint(P, PAL.gold); circle(c, 0, 9, 3.4);
+      c.fillStyle = tint(P, '#c98f1c'); c.fillRect(-1, 8, 2, 2);
+      c.restore();
+    }
+    if (P.mature && !P.silhouette && !P.dead) {   // luck glinting off the canes
+      c.fillStyle = PAL.gold;
+      for (i = 0; i < 3; i++) {
+        var tw = (Math.sin(P.t * 2.6 + i * 2.3) + 1) / 2;
+        if (tw > 0.5) star(c, (i - 1) * 14, -30 - i * 18, (tw - 0.5) * 9, 4, 0.3);
+      }
+    }
+    if (P.glow && P.mature && !P.dead) P.glow(0, -50, 46, PAL.gold, 0.08 + 0.2 * P.night);
   };
 
   /**
@@ -1207,6 +1528,205 @@
       c.fillStyle = 'rgba(10,6,30,0.45)';
       c.beginPath(); c.ellipse(0, -130, 165, 122, 0, 0, PI * 2); c.fill();
       c.strokeStyle = 'rgba(160,140,255,0.6)'; c.lineWidth = 3; c.stroke();
+    }
+  };
+
+  BOSS_ART.gourdon = function (c, o, col) {
+    var t = o.t || 0, rind = o.state === 'armorUp', grab = o.state === 'grab', i;
+    var main = col(rind ? '#c4601e' : '#f08a2c'), dark = col(rind ? '#8a3a10' : '#c9661a'), light = col(rind ? '#de8a4a' : '#ffb05a');
+    var vine = col('#4f8f3a'), leafA = col('#5aa84f'), leafB = col('#3d8a3f');
+    function arm(side) {
+      var reach = grab && side > 0, wave = Math.sin(t * 1.8 + side) * 10;
+      var x0 = side * 108, y0 = -100, x2 = reach ? 168 : side * 152, y2 = reach ? 6 : -158 + wave;
+      var cx = side * 168, cy = reach ? -60 : -78;
+      c.strokeStyle = vine; c.lineWidth = 11; c.lineCap = 'round';
+      c.beginPath(); c.moveTo(x0, y0); c.quadraticCurveTo(cx, cy, x2, y2); c.stroke();
+      for (var k = 1; k < 5; k++) {
+        var tt = k / 5, a = (1 - tt) * (1 - tt), b = 2 * (1 - tt) * tt, e = tt * tt;
+        c.fillStyle = k % 2 ? leafA : leafB;
+        leaf(c, a * x0 + b * cx + e * x2, a * y0 + b * cy + e * y2, -PI / 2 + side * 0.4 + (k % 2 ? -0.9 : 0.9), 26, 10);
+      }
+      c.strokeStyle = vine; c.lineWidth = 4;           // a curly tendril for a hand
+      c.beginPath(); c.arc(x2 + side * 7, y2, 8, 0, PI * 1.5); c.stroke();
+      if (reach) {                                     // your lassoed sprayer
+        c.fillStyle = '#58b368'; rr(c, x2 - 9, y2 - 26, 18, 28, 5); c.fill();
+        c.fillStyle = '#2f5a2a'; c.fillRect(x2 - 3, y2 - 34, 6, 9);
+      }
+    }
+    arm(-1); arm(1);
+    // The body: an enormous lobed Plumpkin.
+    var cy0 = -96, w = 128, h = 92;
+    c.fillStyle = dark; ellipse(c, -w * 0.5, cy0, w * 0.5, h); ellipse(c, w * 0.5, cy0, w * 0.5, h);
+    c.fillStyle = main; ellipse(c, -w * 0.24, cy0, w * 0.48, h * 0.99); ellipse(c, w * 0.24, cy0, w * 0.48, h * 0.99);
+    c.fillStyle = light; ellipse(c, 0, cy0, w * 0.3, h);
+    c.fillStyle = 'rgba(255,255,255,0.16)'; ellipse(c, -w * 0.62, cy0 - h * 0.45, w * 0.1, h * 0.25, -0.4);
+    if (rind) {                                        // the rind hardens and shines
+      c.strokeStyle = 'rgba(255,255,255,0.6)'; c.lineWidth = 3;
+      line(c, -96, -150, -80, -116); line(c, 84, -160, 98, -128); line(c, -40, -30, -28, -14);
+    }
+    // A crown of vine leaves, the old stem, and a tiny gold crown, slightly askew.
+    for (i = -2; i <= 2; i++) {
+      c.fillStyle = i % 2 ? leafA : leafB;
+      leaf(c, i * 20, -178, -PI / 2 + i * 0.32, 38 - Math.abs(i) * 5, 10);
+    }
+    c.strokeStyle = vine; c.lineWidth = 3;
+    c.beginPath(); c.arc(-46, -196, 9, 0.5, PI * 1.8); c.stroke();
+    c.beginPath(); c.arc(50, -192, 8, PI * 1.2, PI * 2.5); c.stroke();
+    c.fillStyle = col('#7a5a2a'); rr(c, -9, -206, 18, 30, 6); c.fill();
+    c.save(); c.translate(24, -204); c.rotate(0.35 + Math.sin(t * 1.5) * 0.05);
+    c.fillStyle = col('#ffd24a');
+    c.beginPath(); c.moveTo(-16, 0); c.lineTo(-16, -15); c.lineTo(-8, -6); c.lineTo(0, -19); c.lineTo(8, -6); c.lineTo(16, -15); c.lineTo(16, 0); c.closePath(); c.fill();
+    c.fillStyle = col('#e8393e'); circle(c, 0, -5, 3);
+    c.restore();
+    // The carved face, lit from inside.
+    c.fillStyle = col(Math.sin(t * 3) > 0.4 ? '#ffe27a' : '#ffd24a'); c.strokeStyle = col('#8a3a10'); c.lineWidth = 3; c.lineJoin = 'round';
+    function hole(pts) {
+      c.beginPath(); c.moveTo(pts[0], pts[1]);
+      for (var j = 2; j < pts.length; j += 2) c.lineTo(pts[j], pts[j + 1]);
+      c.closePath(); c.fill(); c.stroke();
+    }
+    hole([-68, -140, -20, -124, -46, -100]); hole([68, -140, 20, -124, 46, -100]);
+    hole([0, -106, -11, -86, 11, -86]);
+    c.beginPath(); c.moveTo(-76, -74); c.quadraticCurveTo(0, -52, 76, -74); c.quadraticCurveTo(0, -12, -76, -74); c.closePath(); c.fill(); c.stroke();
+    c.fillStyle = light; c.fillRect(-32, -66, 13, 12); c.fillRect(16, -64, 13, 12); c.fillRect(-7, -51, 14, 9);
+    var look = Math.sin(t * 0.8) * 5;
+    c.fillStyle = '#5a1a08'; ellipse(c, -44 + look, -121, 4, 7); ellipse(c, 44 + look, -121, 4, 7);
+  };
+
+  // The Glass Duchess's head of glass petals: [count, radius, rotation, colour, second colour].
+  var DUCHESS_RINGS = [[9, 62, 0, '#7fd6f5', '#5cc3ea'], [8, 45, 0.35, '#b4ecff', '#93def7'], [7, 30, 0.15, '#e4f9ff', '#c8f1ff']];
+
+  BOSS_ART.duchess = function (c, o, col) {
+    var t = o.t || 0, lash = o.state === 'snap', i, j;
+    var glassA = col('#5aa7a0'), glassB = col('#7fd6c8'), stemC = col('#3a8580'), thorn = col('#c8f1ff');
+    c.strokeStyle = stemC; c.lineWidth = 16; c.lineCap = 'round'; line(c, 0, -70, 0, -150);
+    function arm(side) {
+      var swing = lash ? -0.5 : 0.3 + Math.sin(t * 1.6 + side) * 0.08, len = lash ? 124 : 84, ey = lash ? -10 : 34;
+      c.save(); c.translate(side * 8, -120); c.scale(side, 1); c.rotate(swing);
+      c.strokeStyle = stemC; c.lineWidth = 7; c.lineCap = 'round';
+      c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(len * 0.5, 14, len, ey); c.stroke();
+      c.fillStyle = glassB; leaf(c, len * 0.45, 9, 0.35, 34, 11);
+      c.fillStyle = thorn;
+      for (var k = 1; k <= 4; k++) {               // glass thorns along the arm
+        var tt = k / 5, px = len * tt, py = ey * tt * tt + 28 * tt * (1 - tt);
+        c.beginPath(); c.moveTo(px - 4, py); c.lineTo(px, py - 11); c.lineTo(px + 4, py); c.closePath(); c.fill();
+      }
+      c.restore();
+    }
+    arm(-1); arm(1);
+    // Her gown: tall glass leaves fanning up from the ground.
+    c.strokeStyle = 'rgba(255,255,255,0.45)'; c.lineWidth = 1.5;
+    for (i = -3; i <= 3; i++) {
+      c.fillStyle = i % 2 ? glassA : glassB;
+      leaf(c, i * 12, 4, -PI / 2 + i * 0.3, 118 - Math.abs(i) * 12, 26);
+      c.stroke();
+    }
+    // Her head: a crystal rose with a very polite, very unimpressed face.
+    c.save(); c.translate(0, -172); c.rotate(Math.sin(t * 0.9) * 0.05);
+    for (var rg = 0; rg < DUCHESS_RINGS.length; rg++) {
+      var ring = DUCHESS_RINGS[rg], n = ring[0], R = ring[1], spread = PI / n * 0.95;
+      for (j = 0; j < n; j++) {
+        var a = -PI / 2 + ring[2] + j * PI * 2 / n;
+        c.fillStyle = col(j % 2 ? ring[3] : ring[4]);
+        c.beginPath(); c.moveTo(0, 0);
+        c.lineTo(Math.cos(a - spread) * R * 0.75, Math.sin(a - spread) * R * 0.75);
+        c.lineTo(Math.cos(a) * R, Math.sin(a) * R);
+        c.lineTo(Math.cos(a + spread) * R * 0.75, Math.sin(a + spread) * R * 0.75);
+        c.closePath(); c.fill();
+        c.strokeStyle = 'rgba(255,255,255,0.6)'; c.lineWidth = 1.5; c.stroke();
+      }
+    }
+    c.fillStyle = col('#f2fcff'); circle(c, 0, 2, 22);
+    c.strokeStyle = PAL.ink; c.lineWidth = 1.6; c.lineCap = 'round';
+    for (i = -1; i <= 1; i += 2) {
+      c.fillStyle = '#ffffff'; ellipse(c, i * 8, 0, 4.5, 3.5);
+      c.fillStyle = PAL.ink; circle(c, i * 8 + 1, 1, 2);
+      c.fillStyle = col('#c8f1ff'); c.fillRect(i * 8 - 5, -4, 10, 3.5);       // heavy, haughty lids
+      line(c, i * 8 - 5, -0.5, i * 8 + 5, -0.5);
+      line(c, i * 8 + i * 4, -1, i * 8 + i * 7, -4);                          // one elegant lash
+    }
+    c.fillStyle = 'rgba(255,140,190,0.4)'; circle(c, -13, 8, 3); circle(c, 13, 8, 3);
+    if (lash) { c.fillStyle = '#5a2a4a'; ellipse(c, 0, 12, 3.5, 4.5); }
+    else { c.beginPath(); c.arc(0, 8, 4, 0.4, PI - 0.4); c.stroke(); }
+    c.fillStyle = col('#ffd24a');                     // her tiara
+    c.beginPath(); c.moveTo(-22, -56); c.lineTo(-14, -74); c.lineTo(-7, -60); c.lineTo(0, -82); c.lineTo(7, -60); c.lineTo(14, -74); c.lineTo(22, -56); c.closePath(); c.fill();
+    c.fillStyle = col('#ff8fd8'); circle(c, 0, -66, 3.5);
+    c.restore();
+    c.fillStyle = '#ffffff';                          // glints that come and go
+    for (i = 0; i < 4; i++) {
+      var tw = (Math.sin(t * 2.2 + i * 1.7) + 1) / 2;
+      if (tw > 0.55) star(c, Math.cos(i * 1.6) * 90, -172 + Math.sin(i * 1.6) * 60, (tw - 0.55) * 18, 4, 0.3);
+    }
+  };
+
+  BOSS_ART.monarch = function (c, o, col) {
+    var t = o.t || 0, p2 = o.phase === 2, shriek = o.state === 'weak', bark = o.state === 'armorUp', hide = o.state === 'shield', i;
+    var skin = col(bark ? '#9a7a52' : '#e2c49a'), shade = col(bark ? '#6a4f32' : '#b8936a'), rootC = col(bark ? '#7a5a3a' : '#d9b98a');
+    var leafA = col('#5f9e4a'), leafB = col('#447a38'), berry = col('#b98ad9');
+    c.save(); c.translate(0, (p2 ? -16 : 0) + (hide ? 50 : 0));
+    if (p2) {                                         // all the way out: two stubby root legs
+      var step = Math.sin(t * 4) * 6;
+      c.strokeStyle = rootC; c.lineWidth = 18; c.lineCap = 'round';
+      line(c, -38, -30, -56, 12 + step); line(c, 38, -30, 58, 12 - step);
+      c.lineWidth = 5; line(c, -56, 12 + step, -74, 18 + step); line(c, 58, 12 - step, 76, 18 - step);
+    }
+    var sway = Math.sin(t * 1.3) * 0.06;              // the leafy tuft, behind the head
+    for (i = -4; i <= 4; i++) {
+      c.fillStyle = i % 2 ? leafA : leafB;
+      leaf(c, i * 6, -166, -PI / 2 + i * 0.27 + sway, 70 - Math.abs(i) * 6, 16);
+    }
+    function arm(side) {
+      var wave = Math.sin(t * (p2 ? 4 : 2) + side) * (p2 ? 0.35 : 0.18);
+      c.save(); c.translate(side * 82, -96); c.scale(side, 1); c.rotate(-0.5 - wave);
+      c.strokeStyle = rootC; c.lineWidth = 16; c.lineCap = 'round';
+      c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(36, 10, 64, -16); c.stroke();
+      c.lineWidth = 6;                                // knobbly root fingers
+      line(c, 64, -16, 84, -30); line(c, 64, -16, 88, -12); line(c, 60, -14, 68, -40);
+      c.restore();
+    }
+    arm(-1); arm(1);
+    // The root itself: a huge, wrinkly, deeply offended head.
+    c.fillStyle = skin;
+    c.beginPath(); c.moveTo(-90, -18);
+    c.bezierCurveTo(-104, -140, -48, -176, 0, -176);
+    c.bezierCurveTo(48, -176, 104, -140, 90, -18);
+    c.quadraticCurveTo(0, 16, -90, -18); c.closePath(); c.fill();
+    c.strokeStyle = shade; c.lineWidth = 3; c.lineCap = 'round';
+    line(c, -60, -40, -44, -46); line(c, 50, -30, 66, -38); line(c, -70, -110, -58, -118); line(c, 62, -120, 72, -108);
+    if (bark) {                                       // bark skin
+      c.lineWidth = 4;
+      for (i = -3; i <= 3; i++) { c.beginPath(); c.moveTo(i * 22, -160 + Math.abs(i) * 8); c.quadraticCurveTo(i * 26 + 6, -90, i * 24, -20); c.stroke(); }
+    }
+    c.fillStyle = col('#ffd24a');                     // a gold crown with mandrake berries
+    c.beginPath(); c.moveTo(-40, -164); c.lineTo(-44, -196); c.lineTo(-22, -180); c.lineTo(0, -204); c.lineTo(22, -180); c.lineTo(44, -196); c.lineTo(40, -164); c.closePath(); c.fill();
+    c.fillStyle = berry; circle(c, -44, -198, 5); circle(c, 0, -206, 6); circle(c, 44, -198, 5); circle(c, 0, -176, 5);
+    // The face: furious brows, rosy cheeks and (in phase two) glowing red eyes.
+    c.fillStyle = p2 ? col('#ff5a3a') : '#ffffff'; ellipse(c, -30, -118, 15, 13); ellipse(c, 30, -118, 15, 13);
+    var look = Math.sin(t * 0.9) * 4;
+    c.fillStyle = PAL.ink; circle(c, -28 + look, -116, 6); circle(c, 32 + look, -116, 6);
+    c.strokeStyle = col('#5a3a22'); c.lineWidth = 7;
+    line(c, -52, -146, -14, -132); line(c, 52, -146, 14, -132);
+    c.fillStyle = 'rgba(255,130,150,0.45)'; circle(c, -56, -86, 10); circle(c, 56, -86, 10);
+    c.fillStyle = '#5a1a2a';
+    if (shriek || p2) {
+      ellipse(c, 0, -66, shriek ? 26 : 18, shriek ? 32 : 20);
+      c.fillStyle = '#d9466a'; ellipse(c, 0, shriek ? -46 : -56, 12, 7);
+    } else {                                          // a royal frown
+      c.beginPath(); c.moveTo(-26, -60); c.quadraticCurveTo(0, -84, 26, -60); c.quadraticCurveTo(0, -70, -26, -60); c.fill();
+    }
+    if (shriek) {                                     // the shriek, in rings
+      c.strokeStyle = 'rgba(255,240,200,0.7)'; c.lineWidth = 4;
+      for (i = 0; i < 3; i++) {
+        var r = 40 + ((t * 120 + i * 40) % 120);
+        c.beginPath(); c.arc(0, -66, r, -0.5, 0.5); c.stroke();
+        c.beginPath(); c.arc(0, -66, r, PI - 0.5, PI + 0.5); c.stroke();
+      }
+    }
+    c.restore();
+    if (!p2 || hide) {                                // still half buried (or ducking back in)
+      c.fillStyle = col('#4a3424'); ellipse(c, 0, 2, 132, 24);
+      c.fillStyle = col('#5a3d2e'); ellipse(c, -36, -6, 54, 12); ellipse(c, 48, -4, 40, 10);
+      c.fillStyle = col('#6b4a35'); circle(c, -90, -10, 7); circle(c, 80, -12, 6); circle(c, 10, -16, 5);
     }
   };
 

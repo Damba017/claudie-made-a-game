@@ -792,11 +792,12 @@
   };
 
   // ---- Rare seed offers (event-only plants) ---------------------------
-  /** The rare plant that belongs to an event kind, or null. */
-  L.rareFor = function (kind) {
-    for (var i = 0; i < C.SPECIES.length; i++) if (C.SPECIES[i].rare === kind) return C.SPECIES[i];
-    return null;
+  /** Every rare plant that belongs to an event kind (some events have two). */
+  L.raresFor = function (kind) {
+    return C.SPECIES.filter(function (sp) { return sp.rare === kind; });
   };
+  /** The first rare plant of an event kind, or null. */
+  L.rareFor = function (kind) { return L.raresFor(kind)[0] || null; };
   /** Rare offers only start once the barn is far enough along to afford them. */
   L.rareOpen = function (state) { return !!state.unlocked[C.RARE.needs]; };
 
@@ -811,9 +812,11 @@
 
   /** When an event starts: sometimes its rare plant is offered too. */
   function maybeRareOffer(state, kind) {
-    var sp = L.rareFor(kind);
-    if (!sp || !L.rareOpen(state) || state.events.rare) return;   // no extra dice roll before that (keeps tests stable)
-    if (L.rng() < C.RARE.chance) L.offerRare(state, sp.id);
+    var list = L.raresFor(kind);
+    if (!list.length || !L.rareOpen(state) || state.events.rare) return;   // no extra dice roll before that (keeps tests stable)
+    if (L.rng() >= C.RARE.chance) return;
+    var sp = list.length > 1 ? list[Math.floor(L.rng() * list.length)] : list[0];
+    L.offerRare(state, sp.id);
   }
 
   L.buyRare = function (state) {
@@ -832,9 +835,40 @@
     var n = 0;
     for (var i = 0; i < state.pots.length; i++) {
       var p = state.pots[i].plant;
-      if (p && !p.dead && C.SPECIES_BY_ID[p.species].rare === 'bee') n++;
+      if (p && !p.dead && C.SPECIES_BY_ID[p.species].beeLure) n++;
     }
     return Math.min(n, C.RARE.maxHoneyhearts);
+  }
+
+  /** Slot of the first living Gobblepot Pitcher (it catches every pest), or -1. */
+  function pestEater(state) {
+    for (var i = 0; i < state.pots.length; i++) {
+      var p = livePlant(state, i);
+      if (p && L.species(p).eatsPests) return i;
+    }
+    return -1;
+  }
+
+  /** Extra golden chance from Fortune Bamboo in the barn. Does not stack. */
+  L.barnLuck = function (state) {
+    var best = 0;
+    for (var i = 0; i < state.pots.length; i++) {
+      var p = livePlant(state, i);
+      if (p && L.species(p).luck > best) best = L.species(p).luck;
+    }
+    return best;
+  };
+  /** Chance that a well-kept plant ripens golden. */
+  L.goldenChance = function (state) {
+    return C.QUALITY.goldenChance + L.eff(state, 'clover') + L.eff(state, 'hLuck') + L.barnLuck(state);
+  };
+
+  /** Puffcloud rain: tops pot j up towards the middle of its comfy zone. */
+  function drizzleOn(state, j, amount) {
+    var q = livePlant(state, j);
+    if (!q) return;
+    var sp = L.species(q), mid = (sp.water[0] + sp.water[1]) / 2;
+    if (q.water < mid) q.water = Math.min(mid, q.water + amount);
   }
 
   // ==================================================================
@@ -919,6 +953,17 @@
   L.triggerEvent = function (state, kind) {
     var ev = state.events;
     if (kind === 'pest') {
+      // A Gobblepot Pitcher catches the bug before it reaches any other plant.
+      var eater = pestEater(state);
+      if (eater >= 0) {
+        var gp = state.pots[eater].plant;
+        if (gp.growth < 1) gp.growth = Math.min(0.999, gp.growth + L.species(gp).snack);
+        state.stats.eventsSeen++;
+        state.stats.pestsBeaten++;
+        emit('eventStart', { kind: 'pest', slot: eater, eaten: true });
+        maybeRareOffer(state, 'pest');
+        return 'pest';
+      }
       var candidates = [];
       for (var i = 0; i < state.pots.length; i++) {
         var p = livePlant(state, i);
@@ -931,6 +976,7 @@
         state.pots[slot].plant.pestT = 0;
         state.stats.eventsSeen++;
         emit('eventStart', { kind: 'pest', slot: slot });
+        maybeRareOffer(state, 'pest');
         return 'pest';
       }
     }
@@ -1009,6 +1055,7 @@
       if (p.water < mid) p.water = Math.min(mid, p.water + C.EVENTS.rainWater * dt);
     }
     if (env.offline && p.water < lo * C.OFFLINE.waterFloor) p.water = lo * C.OFFLINE.waterFloor;
+    if (sp.drizzle) for (k = i - 1; k <= i + 1; k++) drizzleOn(state, k, sp.drizzle * dt);   // Puffcloud Nimbus
 
     // Pests.
     var tonic = L.nutStrength(state, p, 'tonic');
@@ -1057,8 +1104,7 @@
       if (p.growth >= 1) {
         p.growth = 1;
         p.ripeAge = 0;
-        var chance = C.QUALITY.goldenChance + L.eff(state, 'clover') + L.eff(state, 'hLuck');
-        p.golden = L.quality(p) >= C.QUALITY.goldenMinQuality && L.rng() < chance;
+        p.golden = L.quality(p) >= C.QUALITY.goldenMinQuality && L.rng() < L.goldenChance(state);
         emit('matured', { slot: i, species: sp.id, golden: p.golden });
       }
     } else if (env.offline) {

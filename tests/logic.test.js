@@ -756,7 +756,7 @@
 
   test('Heirloom upgrades give head starts in later seasons', function () {
     var st = S.newGame();
-    st.heirlooms = 1000;
+    st.heirlooms = 2000;
     ['hStart', 'hPots', 'hSpecies', 'hHelpers', 'hGrow'].forEach(function (id) {
       while (L.buyUpgrade(st, id).ok) { /* max it */ }
     });
@@ -797,9 +797,9 @@
 
   test('new shop plants: the prize Plumpkin, the heat-loving pepper and the brittle rose', function () {
     var shop = C.SPECIES.filter(function (sp) { return !sp.rare; }), rare = C.SPECIES.filter(function (sp) { return sp.rare; });
-    assert(shop.length === 11 && rare.length === 4, '11 shop plants and 4 rare ones');
+    assert(shop.length === 14 && rare.length === 7, '14 shop plants and 7 rare ones');
     for (var i = 1; i < shop.length; i++) assert(shop[i].unlock > shop[i - 1].unlock, shop[i].id + ' costs more to unlock than ' + shop[i - 1].id);
-    assert(C.SPECIES.slice(-4).every(function (sp) { return sp.rare; }), 'rare plants sit at the end of the list');
+    assert(C.SPECIES.slice(-rare.length).every(function (sp) { return sp.rare; }), 'rare plants sit at the end of the list');
     // Plumpkin: 5 stars doubles the price.
     var st = fresh('pumpkin');
     L.plant(st, 0, 'pumpkin');
@@ -846,9 +846,16 @@
     assert(st.events.rare === null, 'the offer moves on after a while');
     L.plant(st, 0, 'mint');                         // a pest needs a plant, or it turns into a bee visit
     L.triggerEvent(st, 'pest');
-    assert(st.events.rare === null, 'pests bring nothing');
-    var map = { rain: 'lily', heat: 'agave', bee: 'honey', merchant: 'mandrake' };
+    assert(st.events.rare && st.events.rare.species === 'pitcher', 'a pest brings a Gobblepot Pitcher offer');
+    var map = { rain: 'lily', heat: 'agave', bee: 'honey', merchant: 'mandrake', pest: 'pitcher' };
     for (var kind in map) assert(L.rareFor(kind).id === map[kind], kind + ' -> ' + map[kind]);
+    assert(L.raresFor('rain').length === 2 && L.raresFor('bee').length === 2, 'rain and the lucky bee each have two rare plants');
+    // With two rare plants for one event, a second roll picks which one is offered.
+    var two = S.newGame(), rolls = [0, 0.99];
+    two.unlocked[C.RARE.needs] = true;
+    L.rng = function () { return rolls.length ? rolls.shift() : 0.5; };
+    L.triggerEvent(two, 'rain');
+    assert(two.events.rare && two.events.rare.species === 'cloud', 'rain can bring a Puffcloud Nimbus instead');
     // Rare plants never turn up in orders or the merchant's seed deals.
     var o = S.newGame(); o.unlocked = {};
     C.SPECIES.forEach(function (sp) { if (!sp.rare) o.unlocked[sp.id] = true; });
@@ -913,6 +920,72 @@
     assert(Save.parse(Save.serialize(sv)).events.rare === null, 'only rare plants can be on offer');
     sv.events.rare = { species: 'lily', price: 1, t: 50 };
     assert(Save.parse(Save.serialize(sv)).events.rare.price === C.SPECIES_BY_ID.lily.price, 'the price comes from the config, not the save');
+  });
+
+  test('late shop plants: two regrow twice, the bonsai is patient, the firebird loves heat', function () {
+    ['lantern', 'bonsai'].forEach(function (id) {
+      var st = fresh(id), sp = C.SPECIES_BY_ID[id];
+      L.plant(st, 0, id);
+      for (var round = 0; round < 3; round++) {
+        st.pots[0].plant.growth = 1;
+        assert(L.harvest(st, 0).ok, id + ' harvest ' + (round + 1));
+        if (round < 2) assert(st.pots[0].plant && st.pots[0].plant.growth === sp.regrow, id + ' regrows after harvest ' + (round + 1));
+      }
+      assert(st.pots[0].plant === null, id + ' is done after the third harvest');
+    });
+    assert(L.primeWindow(C.SPECIES_BY_ID.bonsai) > L.primeWindow(C.SPECIES_BY_ID.lotus) * 2, 'the bonsai waits a long time before it goes past its prime');
+    var fb = fresh('firebird');
+    L.plant(fb, 0, 'firebird'); pamper(fb);
+    var p = fb.pots[0].plant, g = L.growthRate(fb, p);
+    fb.events.heat = 10;
+    near(L.growthRate(fb, p), g * 1.5, 1e-9, 'firebird x1.5 in a heatwave');
+    fb.events.heat = 0;
+    p.growth = 1; p.qSum = 0.85; p.qTime = 1;
+    var sun = fb.sunshine;
+    assert(L.harvest(fb, 0).sunshine === 4 && fb.sunshine === sun + 4, 'a fine Firebird bloom gives 4 Sunshine');
+    var top = C.UPGRADES_BY_ID.hSpecies;
+    assert(C.SPECIES[L.upgradeValue('hSpecies', top.max) - 1].id === 'firebird', 'the top Seed Library level keeps every shop plant');
+  });
+
+  test('new rare plants: the pitcher eats pests, the cloud waters its neighbours, the bamboo brings luck', function () {
+    // Gobblepot Pitcher: the bug goes into the pitcher instead of a plant.
+    var st = S.newGame();
+    st.seeds = { mint: 2, pitcher: 1 };
+    L.plant(st, 0, 'mint'); L.plant(st, 1, 'pitcher'); L.plant(st, 2, 'mint');
+    pamper(st);
+    var pit = st.pots[1].plant, g = pit.growth;
+    assert(L.triggerEvent(st, 'pest') === 'pest', 'the pest event still happens');
+    assert(st.pots.every(function (pot) { return !pot.plant || pot.plant.pest === 0; }), 'no plant got a bug');
+    near(pit.growth, g + C.SPECIES_BY_ID.pitcher.snack, 1e-9, 'the bug became a snack');
+    assert(st.stats.pestsBeaten === 1 && st.stats.eventsSeen === 1, 'counts as a pest beaten');
+    var q = L.drain().filter(function (e) { return e.type === 'eventStart'; });
+    assert(q.length === 1 && q[0].eaten && q[0].slot === 1, 'announced as eaten, at the pitcher');
+    pit.dead = true;
+    L.triggerEvent(st, 'pest');
+    assert(st.pots[0].plant.pest > 0 || st.pots[2].plant.pest > 0, 'a withered pitcher eats nothing');
+    // Puffcloud Nimbus: waters itself and its two neighbours, never beyond the comfy middle.
+    var cl = S.newGame();
+    cl.seeds = { fern: 2, cloud: 1, mint: 1 };
+    L.plant(cl, 0, 'fern'); L.plant(cl, 1, 'cloud'); L.plant(cl, 2, 'fern'); L.plant(cl, 3, 'mint');
+    cl.pots.forEach(function (pot) { pot.plant.water = 5; });
+    run(cl, 30);
+    for (var i = 0; i < 3; i++) {
+      var w = cl.pots[i].plant, sp = L.species(w);
+      assert(w.water >= sp.water[0] && w.water <= (sp.water[0] + sp.water[1]) / 2 + 0.01, sp.id + ' in pot ' + i + ' is watered by the cloud: ' + w.water);
+    }
+    assert(cl.pots[3].plant.water < L.species(cl.pots[3].plant).water[0], 'a pot further away stays dry');
+    // Fortune Bamboo: a higher golden chance for the whole barn, not stacking.
+    var lb = fresh();
+    L.plant(lb, 0, 'mint');
+    var base = L.goldenChance(lb), bee = L.eventWeights(lb).bee;
+    lb.seeds.bamboo = 2;
+    L.plant(lb, 1, 'bamboo');
+    near(L.goldenChance(lb), base + C.SPECIES_BY_ID.bamboo.luck, 1e-9, 'bamboo raises the golden chance');
+    L.plant(lb, 2, 'bamboo');
+    near(L.goldenChance(lb), base + C.SPECIES_BY_ID.bamboo.luck, 1e-9, 'a second one does not add more');
+    near(L.eventWeights(lb).bee, bee, 1e-9, 'bamboo does not call the lucky bee like a Honeyheart');
+    lb.pots[1].plant.dead = true; lb.pots[2].plant.dead = true;
+    near(L.goldenChance(lb), base, 1e-9, 'withered bamboo brings no luck');
   });
 
   test('the income estimate on the barn sign follows plant value and growth speed', function () {
@@ -1165,6 +1238,28 @@
     assert(K.healthLeft(n, 'thornzilla') === 1 && !n.bossTries.thornzilla, 'a New Season heals every boss');
     var slow = K.simulate(fighter(4, 11), 'snapdragon', { cps: 0.5 });
     assert(slow.ok && !slow.won && slow.timeLeft === 0, 'time can still run out');
+  });
+
+  test('the late bosses: one per season from 8 to 10, each with an award', function () {
+    var late = ['gourdon', 'duchess', 'monarch'];
+    assert(C.BOSSES.length === 8, 'eight bosses');
+    late.forEach(function (id, n) {
+      var b = K.boss(id);
+      assert(b && b.prestige === 8 + n, id + ' appears in season ' + (8 + n));
+      assert(L.upgradeMax(fighter(b.prestige, 0), 'sharp') >= b.sharp, id + ': Shear Sharpness ' + b.sharp + ' can be bought in its own season');
+      assert(K.lock(fighter(b.prestige, b.sharp), id, 0) === null, id + ' can be fought at its required level');
+      var st = S.newGame();
+      st.trophies[id] = true;
+      assert(C.ACHIEVEMENTS_BY_ID['boss' + (6 + n)].value(st) === 1, 'an award for beating ' + id);
+    });
+    var m = fighter(10, 25), mf = K.start(m, 'monarch', 0).fight;
+    mf.hp = Math.round(mf.maxHp * 0.5) + 10;
+    L.rng = function () { return 0.99; };
+    K.snip(m, mf);
+    assert(mf.phase === 2, 'the Mandrake Monarch climbs out of the ground at half health');
+    var g = fighter(8, 21), gf = K.start(g, 'gourdon', 0).fight;
+    gf.move = { kind: 'grab', def: K.boss('gourdon').moves[2], t: 5 };
+    assert(K.spray(g, gf).reason === 'grabbed', 'the Vine Lasso takes the sprayer away');
   });
 
   test('the day/night clock advances and wraps', function () {

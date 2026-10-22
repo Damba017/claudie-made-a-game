@@ -238,6 +238,9 @@
       if (sp.crumbs) extra.push(sp.harvests * sp.crumbs + ' Comet Crumbs');
       if (sp.heirlooms) extra.push('up to ' + sp.harvests * sp.heirlooms + ' Heirloom Seeds');
       if (sp.heatPay) extra.push('double if harvested in a heatwave');
+      if (sp.eatsPests) extra.push('catches every pest while it grows');
+      if (sp.drizzle) extra.push('waters itself and both neighbours');
+      if (sp.luck) extra.push('+' + Math.round(sp.luck * 100) + '% golden chance for the barn');
       lines.push('  ' + padRight(sp.name, 20) + pad(sp.price, 9) + pad(total, 13) + pad((total / sp.price).toFixed(1) + 'x', 9) + '   ' + extra.join(', '));
     });
     return lines.join('\n');
