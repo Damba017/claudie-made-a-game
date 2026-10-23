@@ -718,9 +718,16 @@
   }
 
   // ---- Gifts ---------------------------------------------------------------
+  // Gifts and new trades are switched off for now, because codes were being
+  // reused. Set to false to open them again. Open offers can still be
+  // finished (reply code) or cancelled, so nobody loses what they set aside.
+  G.giftsClosed = true;
+  var CLOSED = 'Gifts and trades are closed for a little while.';
+
   /** Wraps a gift from your own stock. Returns the gift code, or null if it could not be made. */
   G.makeGift = function (items) {
     if (!G.state || G.mode !== 'play') return null;
+    if (G.giftsClosed) { complain('closed', CLOSED); return null; }
     var r = L.makeGift(G.state, items);
     if (!r.ok) {
       complain('gift:' + r.reason, r.reason === 'empty' ? 'Choose at least one thing to give.' : 'You do not have that much to give.');
@@ -733,6 +740,7 @@
   /** Opens a gift code. Returns { ok, items, from } or { ok: false, reason: invalid | own | used }. */
   G.openGift = function (text) {
     if (!G.state || G.mode !== 'play') return { ok: false, reason: 'invalid' };
+    if (G.giftsClosed) { Sound.play('error'); return { ok: false, reason: 'closed' }; }
     var gift = Save.parseGift(text);
     if (!gift) { Sound.play('error'); return { ok: false, reason: 'invalid' }; }
     var r = L.openGift(G.state, gift);
@@ -744,6 +752,7 @@
   /** Proposes a trade. Returns true if the offer was made (its code is then listed under open offers). */
   G.makeTrade = function (give, want) {
     if (!G.state || G.mode !== 'play') return false;
+    if (G.giftsClosed) { complain('closed', CLOSED); return false; }
     var r = L.makeTrade(G.state, give, want);
     if (!r.ok) {
       complain('trade:' + r.reason, {
@@ -770,11 +779,13 @@
    * Reads a pasted trade code. Returns one of
    *   { type: 'trade', trade, problem }   an offer from a friend (problem is null if you can accept)
    *   { type: 'deal', ok, items, from, reason }   a reply to one of your offers, completed on the spot
+   *   { type: 'closed' }   an offer from a friend while trades are closed
    *   { type: 'invalid' }
    */
   G.readTradeCode = function (text) {
     if (!G.state || G.mode !== 'play') return { type: 'invalid' };
     var trade = Save.parseTrade(text);
+    if (trade && G.giftsClosed) { Sound.play('error'); return { type: 'closed' }; }
     if (trade) return { type: 'trade', trade: trade, problem: L.tradeProblem(G.state, trade) };
     var deal = Save.parseDeal(text);
     if (deal) {
@@ -787,6 +798,7 @@
   };
   /** Accepts a friend's offer. Returns the reply code to send back, or null. */
   G.acceptTrade = function (trade) {
+    if (G.giftsClosed) { complain('closed', CLOSED); return null; }
     var r = L.acceptTrade(G.state, trade);
     if (!r.ok) { Sound.play('error'); return null; }
     G.state.lastDealCode = Save.dealString(r.deal);

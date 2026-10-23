@@ -1720,6 +1720,10 @@
 
   function friendsGifts(body, m) {
     var st = G.state;
+    if (G.giftsClosed) {
+      body.appendChild(el('p', { class: 'hint', text: 'Gifts are closed for a little while. Visits still work, and gifts will be back soon.' }));
+      return;
+    }
     if (!st || G.mode !== 'play') {
       body.appendChild(el('p', { class: 'hint', text: 'Gifts are sent and opened from inside your barn. Continue your game, then open Friends from the pause menu.' }));
       return;
@@ -1833,7 +1837,9 @@
       body.appendChild(el('p', { class: 'hint', text: 'Trades are made from inside your barn. Continue your game, then open Friends from the pause menu.' }));
       return;
     }
-    body.appendChild(el('p', { class: 'hint', text: 'How a trade works: 1) you make an offer and send the code, 2) your friend accepts it and sends a reply code back, 3) you paste the reply and receive your part.' }));
+    body.appendChild(el('p', { class: 'hint', text: G.giftsClosed
+      ? 'New trades are closed for a little while. You can still paste a reply code (DEAL-) for one of your open offers, or cancel an offer to get your things back.'
+      : 'How a trade works: 1) you make an offer and send the code, 2) your friend accepts it and sends a reply code back, 3) you paste the reply and receive your part.' }));
 
     // ---- Answer a code (offer from a friend, or a reply to your own offer) ----
     var paste = el('textarea', { class: 'code', rows: 3, placeholder: 'Paste a trade code (TRADE-) or a reply code (DEAL-) here', 'aria-label': 'Trade or reply code from a friend' });
@@ -1846,6 +1852,7 @@
       if (!paste.value.trim()) { say('Paste a code first.', true); return; }
       var r = G.readTradeCode(paste.value);
       if (r.type === 'invalid') { say('That is not a valid trade or reply code. Ask your friend to copy the whole code again.', true); return; }
+      if (r.type === 'closed') { say('Trades are closed for a little while, so this offer cannot be accepted right now.', true); return; }
       if (r.type === 'deal') {
         if (r.ok) { paste.value = ''; m.render(); }
         else say('This reply does not match any of your open offers. It may already be completed or cancelled.', true);
@@ -1903,6 +1910,7 @@
     }
 
     // ---- New offer ----
+    if (G.giftsClosed) return;
     body.appendChild(el('h3', { text: 'Make an offer' }));
     var give = itemFields(st, true, 'to give'), want = itemFields(st, false, 'wanted');
     if (!give.count) {
