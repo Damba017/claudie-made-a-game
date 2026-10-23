@@ -1,3 +1,6 @@
 .DS_Store
 .env
 .claude/
+CLAUDE.md
+docs/
+admin-key.js

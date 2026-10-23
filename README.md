@@ -120,7 +120,7 @@ Pick a tool, then tap a pot. Hold and drag to use the tool on several pots.
 | `Space` `S` · `Q` `W` `E` `R` · `Esc` | In a fight: snip, spray · battle items · give up |
 | `P` / `Esc` | Pause · close a dialog |
 | `M` / `F` | Mute · Photo mode |
-| `` ` `` | Admin panel for testing *(only when `index.html` is opened as a local file, never on the website; also in the pause menu)* |
+| `` ` `` | Admin panel for testing *(only for the owner: needs a local file and a private key file that is not in this repository; also in the pause menu)* |
 
 ## 🗂️ Project layout
 

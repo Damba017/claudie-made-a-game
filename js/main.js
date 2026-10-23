@@ -18,8 +18,23 @@
   BB.Game = G;
 
   // The admin panel only exists when the game is opened as a file on the
-  // owner's own computer. On a website (GitHub Pages) it cannot be opened.
-  G.isAdmin = !!(root.location && root.location.protocol === 'file:');
+  // owner's own computer AND admin-key.js (kept out of git) holds the right
+  // key. Only a hash of the key is stored here, never the key itself.
+  var ADMIN_HASH = 7318048518710284;
+  /** cyrb53: a small, fast 53-bit string hash. */
+  function hashKey(str) {
+    var h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+    for (var i = 0; i < str.length; i++) {
+      var ch = str.charCodeAt(i);
+      h1 = Math.imul(h1 ^ ch, 2654435761);
+      h2 = Math.imul(h2 ^ ch, 1597334677);
+    }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    return 4294967296 * (2097151 & h2) + (h1 >>> 0);
+  }
+  G.isAdmin = !!(root.location && root.location.protocol === 'file:') &&
+    typeof root.BB_ADMIN_KEY === 'string' && hashKey(root.BB_ADMIN_KEY) === ADMIN_HASH;
 
   var canvas, demo;
   var env = { events: true, offline: false };
